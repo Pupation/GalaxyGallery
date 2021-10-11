@@ -1,0 +1,9 @@
+db:
+  nosql:
+    url: mongodb://10.10.10.10:27017
+    name: gg
+  sql: "mysql://10.10.10.10:tbd"
+
+site:
+  name: "Galaxy Gallery Private Tracker"
+  domain: ['pt.galaxy.gallery']
