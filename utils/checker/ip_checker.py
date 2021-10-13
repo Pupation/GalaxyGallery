@@ -24,7 +24,6 @@ def check_ip(ip: str, version: int = 4):
 
     """
     logger.debug("Checking ip: %s, version: %d" % (ip, version))
-    print("Checking ip: %s, version: %d" % (ip, version))
     if version == 4:
         return asyncio.create_task(_check_ip4(ip))
     if version == 6:
