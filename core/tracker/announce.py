@@ -4,7 +4,7 @@ from fastapi import Header, Request
 from main import gg
 from utils.response import BencResponse, ErrorResponse
 from utils.checker.ip_checker import check_ip
-from utils.checker.ua_checker import check_ua
+from utils.checker.ua_checker import check_ua_or_400
 from models.helper import ErrorException
 
 
@@ -33,7 +33,7 @@ async def announce(
 
         coroutine_checkip = check_ip(ip)
 
-        client = check_ua(request)
+        client = check_ua_or_400(request)
         blocked_ip = await coroutine_checkip
 
         if blocked_ip:

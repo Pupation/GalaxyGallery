@@ -12,7 +12,7 @@ class TorrentClient:
         self.peer_id_regex = re.compile(self.record.peer_id_pattern)
         self.agent_regex = re.compile(self.record.agent_pattern)
     
-    def __eq__(self, agent: str) -> bool:
+    def __contains__(self, agent: str) -> bool:
         agent = self.agent_regex.match(agent)
         if agent:
             return True
