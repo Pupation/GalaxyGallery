@@ -6,18 +6,23 @@ from .helper import PyObjectId
 
 import re
 
+
 class TorrentClient:
     def __init__(self, **kwargs):
         self.record = _TorrentClient(**kwargs)
         self.peer_id_regex = re.compile(self.record.peer_id_pattern)
         self.agent_regex = re.compile(self.record.agent_pattern)
-    
+
     def __contains__(self, agent: str) -> bool:
         agent = self.agent_regex.match(agent)
         if agent:
             return True
         else:
             return False
+    
+    def get(self, key: str) -> Any:
+        return self.record.__getattribute__(key)
+
 
 class _TorrentClient(BaseModel):
     # id: Optional[PyObjectId] = Field(alias='_id')
