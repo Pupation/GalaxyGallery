@@ -4,10 +4,8 @@ from datetime import timedelta
 from main import gg
 from utils.response import BencResponse, ErrorResponse
 from utils.checker import check_ip, check_ua_or_400, check_port_or_400
-from models.helper import ErrorException
-from models.torrent import Peer, PeerList
-
-getPeers = PeerList()
+from models.helper import ErrorException, IP
+from models.torrent import Peer, PeerList, get_peer_count
 
 @gg.get('/announce')
 async def announce(
@@ -18,14 +16,13 @@ async def announce(
     compact: int = 0, no_peer_id: int = 0,
     event: str = '',
     supportcrypto: bool = False, requirecrypto: bool = False,
-    ipv6: str = '',
-
-    user_agent: str = Header(None)
+    ipv6: str = None
 ):
     if event not in ['started', 'completed', 'stopped', 'paused', '']:
         return ErrorResponse('Unknown event.')
     # print(info_hash, peer_id)
-    ip = request.client.host # FIXME: get ip
+    ip = IP(request.client.host, ipv6) # FIXME: get ip
+    
     # print(request.headers)
     # FIXME: BEAWARE DoS! Blocked ip address still able to consume server computation resource
     try:
@@ -41,19 +38,23 @@ async def announce(
         rep_dict = {
             "interval": 60,
             "min interval":  10,
-            "complete": 20,
-            "incomplete": 10
+            # "complete": 20,
+            # "incomplete": 10
             # "peers" : None  # By default it is a array object, only when `&compact=1` then it should be a string
         }
         seeder = left==0
-        peer = Peer(info_hash=info_hash, peer_id=peer_id,ipv4=request.client.host, ipv6=ipv6, port=port, uploaded=uploaded, downloaded=downloaded, event=event,agent=torrent_client.get("family"),seeder=seeder)
-        if compact == 1:  # FIXME: not tested yet
-            if ipv6 != '':
-                rep_dict['peers6'] = getPeers(seeder=seeder, info_hash=info_hash, ip_version=6, requester_ip = ipv6, compact=True)
-            else:
-                rep_dict['peers'] = getPeers(seeder=seeder, info_hash=info_hash, ip_version=4, requester_ip=ip, compact=True)
-        else:
-            rep_dict['peers'] = getPeers(seeder=seeder, info_hash=info_hash, ip_version=6, requester_ip=ipv6, compact=False)
+        peer = Peer(info_hash=info_hash,
+                    peer_id=peer_id,
+                    port=port,
+                    uploaded=uploaded,
+                    downloaded=downloaded,
+                    event=event,
+                    agent=torrent_client.get("family"),
+                    seeder=seeder, **ip.todict()
+                )
+        peers = PeerList(seeder=seeder, info_hash=info_hash, requester_ip=ip, compact=(compact == 1))
+        rep_dict.update(peers())
+        rep_dict.update(get_peer_count(info_hash))
         if event == 'stopped':
             peer.commit(next_allowance = timedelta(seconds=0), seeder=seeder)
         else:
@@ -64,12 +65,12 @@ async def announce(
 
 
 @gg.get('/scrape')
-async def scrape():
+async def scrape(
+    request:Request,
+    info_hash: bytes,
+    passkey: str
+):
     rep_dict = {
-        "files": {
-            "complete": 0,
-            "downloaded": 1,
-            "incomplete": 10
-        }
+        "files": get_peer_count(info_hash)
     }
     return BencResponse(rep_dict)

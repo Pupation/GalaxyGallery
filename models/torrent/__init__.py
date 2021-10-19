@@ -1,1 +1,1 @@
-from .peer import Peer, PeerList
+from .peer import Peer, PeerList, get_peer_count

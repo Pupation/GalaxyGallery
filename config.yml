@@ -6,7 +6,7 @@ db:
 
 site:
   name: "Galaxy Gallery Private Tracker"
-  domain: ['pt.galaxy.gallery']
+  domain: ['https://pt.galaxy.gallery', 'http://localhost:8080'] # for CORS checking
 
 client:
   baned_ports:
@@ -23,3 +23,17 @@ client:
         6699,  # Port used by p2p software, such as WinMX, Napster.
         6881, 6882, 6883, 6884, 6885, 6886, 6887, 6888, 6889, 6890 # BitTorrent part of full range of ports used most often (unofficial)
     ]
+
+cache:
+  utils:
+    checker:
+      ip_checker:
+        _check_db: null # maxsize = None
+      ua_checker:
+        _check_db: null # maxsize = None
+  models:
+    torrent:
+      peer:
+        get_peer_count:
+          seconds: 30     # peer count update per 30 seconds
+          maxsize: 100000  # We cache 100000 peer count objects

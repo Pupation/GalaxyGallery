@@ -8,7 +8,9 @@ from struct import pack
 from socket import inet_pton, AF_INET, AF_INET6
 
 from utils.connection.nosql.db import client as nosql_client
-from models.helper import ErrorException
+from utils.cache import gg_cache
+from models.helper import ErrorException, IP
+
 
 
 class PeerModel(BaseModel):
@@ -82,6 +84,7 @@ class Peer:
             self.peer.prev_action = self.peer.last_action
             self.peer.last_action = datetime.now()
             self.peer.to_go = self.peer.last_action + next_allowance
+            self.peer.seeder = seeder
             nosql_client.peers.insert_one(dict(self.peer))
         else:
             nosql_client.peers.find_one_and_update(
@@ -92,6 +95,7 @@ class Peer:
                     "to_go": self.time + next_allowance,
                     "downloaded": self.request["downloaded"],
                     "uploaded": self.request["uploaded"],
+                    "seeder": seeder
                 }}
             )
 
@@ -108,33 +112,79 @@ class Peer:
 
 class PeerList:
     # @staticmethod
-    def __call__(self, seeder: bool, info_hash: bytes, ip_version: int, requester_ip: str,compact:bool = False) -> List[Peer]:
+    def __init__(self, seeder: bool, info_hash: bytes, requester_ip: IP,compact:bool = False) -> List[Peer]:
         query_params = {
                 "info_hash": info_hash,
                 "to_go": { "$gt": datetime.now() },
-                f"ipv{ip_version}": { "$nin": [None, requester_ip] }
+                "$or": []
             }
+        result_projection = {
+            "port": 1
+        }
+        self.has_ipv4 = requester_ip.has_ipv4()
+        self.has_ipv6 = requester_ip.has_ipv6()
+        if self.has_ipv4:
+            query_params['$or'].append({ 'ipv4': { "$nin": [None, requester_ip.ipv4]}})
+            result_projection['ipv4'] = 1
+        if self.has_ipv6:
+            query_params['$or'].append({ 'ipv6': { "$nin": [None, requester_ip.ipv6]}})
+            result_projection['ipv6'] = 1
+        
         if seeder:
             query_params['seeder'] = False
-        peers = nosql_client.peers.find(query_params, {
-            f"ipv{ip_version}": 1,
-            "port": 1
-        })
-        if not compact:
-            return [{
-                "ip": record.get('ipv%d' % ip_version),
-                "port": record["port"]
-            } for record in peers]
-        else: # Compact
-            array = []
-            _AF_NET = AF_INET if ip_version == 4 else AF_INET6
-            for record in peers:
-                try:
-                    array.append( 
-                        inet_pton(_AF_NET, record[f"ipv{ip_version}"]) + \
-                        pack(">H", record["port"])
-                    )
-                except:
-                    print(record, type(record))
+        self.records = nosql_client.peers.find(query_params, result_projection)
+        self.compact = compact
+        self.seeder = seeder
+        
+    def __call__(self, num_want=40): # TODO: num_want
+        ret_v4 = []
+        ret_v6 = []
+        if self.has_ipv4:
+            for record in self.records:
+                ipv4 = record.get('ipv4', None)
+                if ipv4 is None:
+                    continue
+                ret_v4.append({'ip': ipv4, 'port': record.get('port')})
+        if self.has_ipv6:
+            for record in self.records:
+                ipv6 = record.get('ipv6', None)
+                if ipv6 is None:
+                    continue
+                ret_v6.append({'ip': ipv6, 'port': record.get('port')})     
+        if self.compact:
+            pack_v4 = lambda r: inet_pton(AF_INET, r['ip']) + pack(">H", r['port'])
+            pack_v6 = lambda r: inet_pton(AF_INET6, r['ip']) + pack(">H", r['port'])
+            return {
+                'peers': b''.join([pack_v4(r) for r in ret_v4]),
+                'peers6': b''.join([pack_v6(r) for r in ret_v6])
+            }
+        else: # not compact
+            return {'peers': ret_v4 + ret_v6}
 
-            return b''.join(array) 
+    def __len__(self):
+        return len(self.records)
+    
+
+@gg_cache(cache_type='timed_cache')
+def get_peer_count(info_hash: bytes):
+    query_params = {
+        "info_hash": info_hash,
+        "to_go": { "$gt": datetime.now() }
+    }
+    counts = nosql_client.peers.aggregate(
+        [{"$match": query_params}, 
+         {"$group": 
+            {"_id": "$seeder", 
+            "count": {"$sum": 1}}
+         }
+        ])
+    ret = {
+        'incomplete': 0,
+        'complete': 0
+    }
+    for c in counts:
+        if c['_id'] == False:
+            ret['incomplete'] = c['count']
+        else:
+            ret['complete'] = c['count']
+    return ret
