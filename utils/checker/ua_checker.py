@@ -25,6 +25,13 @@ def check_ua_or_400(request: Request):
 
     """
     ua = request.headers.get('user-agent')
+
+    # TODO: not tested yet
+    peer_id = request._query_params.get('peer_id')
+    key = request._query_params.get('key')
+    if "want-digest" in request.headers or (key in peer_id): # check aria2
+        raise ErrorException("You are not allowed to use this client.")
+
     logger.debug("Checking user agent: %s" % (ua))
     if browser_regex.match(ua):
         raise ErrorException("You are not allowed to access this with browser.")
