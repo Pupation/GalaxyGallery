@@ -9,12 +9,25 @@ from fastapi.logger import logger
 
 @gg_cache
 def _check_db(ip: int, version: int):
-    ret = client.ip_blacklist.find_one({
-        "lower": { "$lte" : ip },
-        "higher": { "$gte": ip },
-        "version": version
-    })
-    return ret is not None
+    if version == 4:
+        ret = client.ip_blacklist.find_one({
+            "lower": { "$lte" : ip },
+            "higher": { "$gte": ip },
+            "version": 4
+        })
+        return ret is not None
+    else:
+        higher64 = ip >> 64
+        lower64 = ip & 0xffffffffffffffffffff
+        ret = client.ip_blacklist.find_one({
+            "lower": { "$lte" : higher64 },
+            "higher": { "$gte": higher64 },
+            "sub_higher": {"$gte": lower64},
+            "sub_lower": {"$lte": lower64},
+            "version": 6,
+        })
+        return ret is not None
+
 
 def check_ip(ip: IP):
     """
@@ -34,7 +47,7 @@ async def _check_ip(ip: IP):
         ipv4 = int(ipaddress.ip_address(ip.ipv4))
         ret = ret or _check_db(ipv4, 4)
     if ip.has_ipv6():
-        ipv6 = int(ipaddress.ip_address(ip.ipv6)) >> 64 # for ipv6 addresses, we only check the first 64 bits
+        ipv6 = int(ipaddress.ip_address(ip.ipv6))
         ret = ret or _check_db(ipv6, 6)
     return ret
 
