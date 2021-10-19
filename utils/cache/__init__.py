@@ -7,9 +7,12 @@ from main import config
 caches = []
 
 
-client = redis.StrictRedis(**config.cache.redis)
+client_lru = redis.StrictRedis(**config.cache.redis)
+client_timed = redis.StrictRedis(**config.cache.redis)
 from redis_lru import RedisLRU
-redis_lru_cache = RedisLRU(client)
+# redis_lru_cache = RedisLRU(client_lru, key_prefix='lru_cache')
+# redis_timed_lru_cache = RedisLRU(client_timed, key_prefix='timed_lru_cache')
+
 # from .redis_lru_cache import lru_cache_redis
 
 def gg_cache(func=None, cache_type='lru_cache', maxsize=None):
@@ -22,6 +25,7 @@ def gg_cache(func=None, cache_type='lru_cache', maxsize=None):
                 print(f"Use maxsize from config for{func_path}:", maxsize)
             except:
                 pass
+        redis_lru_cache = RedisLRU(client_lru, key_prefix=func_path)
         @redis_lru_cache
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
@@ -35,7 +39,8 @@ def gg_cache(func=None, cache_type='lru_cache', maxsize=None):
                 print(f"Use config from config for{func_path}:", _config)
             except:
                 pass
-            @redis_lru_cache(ttl=_config.ttl)
+            redis_timed_lru_cache = RedisLRU(client_timed, key_prefix=func_path)
+            @redis_timed_lru_cache(ttl=_config.ttl)
             def _wrapped(*args, **kwargs):
                 return func(*args, **kwargs)
             return _wrapped
