@@ -11,6 +11,8 @@ pycodestyle==2.8.0
 pydantic==1.8.2
 pymongo==3.12.0
 PyYAML==5.4.1
+redis==3.5.3
+redis-lru==0.1.0
 SQLAlchemy==1.4.25
 starlette==0.14.2
 toml==0.10.2

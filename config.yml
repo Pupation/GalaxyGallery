@@ -25,6 +25,9 @@ client:
     ]
 
 cache:
+  redis:
+    host: 10.10.10.10
+    port: 6379
   utils:
     checker:
       ip_checker:
@@ -35,5 +38,4 @@ cache:
     torrent:
       peer:
         get_peer_count:
-          seconds: 30     # peer count update per 30 seconds
-          maxsize: 100000  # We cache 100000 peer count objects
+          ttl: 30           # peer count update per 30 seconds
