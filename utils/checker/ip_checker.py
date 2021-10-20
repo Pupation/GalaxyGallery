@@ -1,11 +1,25 @@
 import asyncio
 import ipaddress
 
+
 from utils.connection.nosql.db import client
 from utils.cache import gg_cache
 from models.helper import IP
 
+from fastapi import Request, HTTPException
 from fastapi.logger import logger
+
+from main import gg
+
+@gg.middleware("http")
+async def mw_check_ip(request: Request, call_next):
+    client_ip = IP(request.client.host)
+    # print("client access with ip: %s" % client_ip)
+    if await check_ip(client_ip):
+        raise HTTPException(403, "Your are not allowed to access this server.")
+    response = await call_next(request)
+    return response
+
 
 @gg_cache
 def _check_db(ip: int, version: int):
@@ -50,6 +64,3 @@ async def _check_ip(ip: IP):
         ipv6 = int(ipaddress.ip_address(ip.ipv6))
         ret = ret or _check_db(ipv6, 6)
     return ret
-
-def flush_cache():
-    _check_db.cache_clear()
