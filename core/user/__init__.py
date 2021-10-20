@@ -6,3 +6,4 @@ router = APIRouter(
 )
 
 from .user import *
+from .register import *

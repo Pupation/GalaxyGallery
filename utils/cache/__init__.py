@@ -2,6 +2,7 @@
 import redis
 
 from main import config
+from functools import lru_cache
 
 
 caches = []
@@ -22,7 +23,7 @@ def gg_cache(func=None, cache_type='lru_cache', maxsize=None):
         if maxsize is None:
             try:
                 maxsize = eval(f"config.cache.{func_path}")
-                print(f"Use maxsize from config for{func_path}:", maxsize)
+                print(f"[Redis Cache]Use maxsize from config for{func_path}:", maxsize)
             except:
                 pass
         redis_lru_cache = RedisLRU(client_lru, key_prefix=func_path)
@@ -31,7 +32,7 @@ def gg_cache(func=None, cache_type='lru_cache', maxsize=None):
             return func(*args, **kwargs)
         caches.append(wrapper)
         return wrapper
-    if cache_type == 'timed_cache':
+    elif cache_type == 'timed_cache':
         def wrapper(func=None, *args, **kwargs):
             func_path = f"{func.__module__}.{func.__name__}"
             try:
@@ -48,7 +49,20 @@ def gg_cache(func=None, cache_type='lru_cache', maxsize=None):
             return wrapper(func)
         else:
             return wrapper
-
+    elif cache_type == 'py_lru_cache':
+        def wrapper(func=None, *args, **kwargs):
+            func_path = f"{func.__module__}.{func.__name__}"
+            try:
+                maxsize = eval(f"config.cache.{func_path}")
+                print(f"[Py LRU Cache]Use maxsize from config for {func_path}:", maxsize)
+            except:
+                pass
+            @lru_cache(maxsize=maxsize)
+            def _wrapped(*args, **kwargs):
+                return func(*args, **kwargs)
+            return _wrapped
+        
+        return wrapper
 
 def clear_cache():
     redis_lru_cache.clear_all_cache()

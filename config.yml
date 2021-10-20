@@ -2,11 +2,15 @@ db:
   nosql:
     url: mongodb://10.10.10.10:27017
     name: gg
-  sql: "mysql://10.10.10.10:tbd"
+  sql: "mysql+pymysql://root:galaxygallery@10.10.10.10:3306/gg"
 
 site:
   name: "Galaxy Gallery Private Tracker"
   domain: ['https://pt.galaxy.gallery', 'http://localhost:8080'] # for CORS checking
+  SECRET_KEY: c3ff4f4c36ab0bcd483e8bd76fbc5d43a8a76b71a582db1f96561e084be437ae
+  ALGORITHM: HS256
+  default:
+    expire_minutes: 30
 
 client:
   baned_ports:
@@ -35,6 +39,10 @@ cache:
       ua_checker:
         _check_db: null # maxsize = None
   models:
+    user:
+      user:
+        get_user_by_id:
+          ttl: 5
     torrent:
       peer:
         get_peer_count:

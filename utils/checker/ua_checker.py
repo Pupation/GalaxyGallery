@@ -10,7 +10,7 @@ from models.helper import ErrorException
 browser_regex = re.compile('(Mozilla|Browser|WebKit|Opera|Links|Lynx|[Bb]ot)')
 torrent_clients = [TorrentClient(**record) for record in client.user_agent.find()]
 
-@gg_cache
+@gg_cache(cache_type='py_lru_cache') #since the torrent_clients are all locally pre generated, we don't want to re-instantiate them back from redis
 def _check_db(ua: str):
     for client in torrent_clients:
         if ua in client:
