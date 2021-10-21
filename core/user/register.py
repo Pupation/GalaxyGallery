@@ -1,9 +1,11 @@
-from fastapi import Request, Response, Depends
+from fastapi import Request, Response, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
+from urllib.parse import quote_plus
 
 from . import router
 from models.user.user import *
 from models.helper import GeneralException
+from utils.provider import send_mail
 from utils.connection.sql.db import get_sqldb
 
 from .utils import validate_password, validate_username
@@ -13,7 +15,7 @@ def check_exists(db, username, email):
     return user > 0
 
 @router.post('/register/')
-async def register(request: Request, response: Response, db:Session = Depends(get_sqldb)):
+async def register(request: Request, response: Response,bg: BackgroundTasks, db:Session = Depends(get_sqldb)):
     try:
         try:
             form = await request.json()
@@ -28,7 +30,7 @@ async def register(request: Request, response: Response, db:Session = Depends(ge
             invitation_code = form.get('invitation_code', '')
         except KeyError:
             raise GeneralException('Form not complete.', 400)
-        if check_exists(db, username, password):
+        if check_exists(db, username, email):
             raise GeneralException('Username or email already exists.', 409)
         if not validate_password(password):
             raise GeneralException('Password not valid.', 400)
@@ -50,12 +52,14 @@ async def register(request: Request, response: Response, db:Session = Depends(ge
             editsecret=User.gen_secret(),
             secret=secret
         )
+    bg.add_task(send_mail, user.email, 'registration email', f'click this link to confirm your account http://{request.headers["host"]}/api/confirm?code={quote_plus(user.editsecret)}')
+    # send_mail(user.email, 'registration email', f'click this link to confirm your account {request.headers["host"]}/api/confirm/{user.editsecret}')
     db.add(user)
     db.commit()
     db.refresh(user)
     return {'ok': 1}
 
-@router.get('/confirm/')
+@router.get('/confirm')
 async def confirm(
     code:str,
     response: Response,

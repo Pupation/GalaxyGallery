@@ -11,6 +11,10 @@ site:
   ALGORITHM: HS256
   default:
     expire_minutes: 30
+  email:
+    sender: galaxygallery_no_reply@hotmail.com
+    host: smtp.office365.com
+    port: 587
 
 client:
   baned_ports:
