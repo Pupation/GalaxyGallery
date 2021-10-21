@@ -9,7 +9,7 @@ EXPIRATION = [
 ]
 from . import router
 
-from fastapi import Header, Depends, Request, Response
+from fastapi import Header, Depends, Request, Response, HTTPException
 from fastapi.responses import HTMLResponse
 
 from sqlalchemy.orm import Session
@@ -55,5 +55,17 @@ async def create_db():
     create_all()
 
 @router.get('/profile/{userid}')
-def get_profile(userid, user:User = Depends(current_active_user)):
-    return userid, 'hello', user.username
+def get_profile(userid:int, user:User = Depends(current_active_user)):
+
+    if user.id == userid:
+        target_user = user
+        bypass_privacy = True
+    else:
+        try:
+            target_user = get_user_by_id(userid)
+        except:
+            raise HTTPException(404, "User not found")
+        bypass_privacy = False
+
+    ret = target_user.get_profile(bypass_privacy)
+    return ret

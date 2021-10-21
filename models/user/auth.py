@@ -23,11 +23,14 @@ def create_access_token(data:dict, expires_delta: Optional[timedelta] = None):
 
 
 async def current_user(token: User = Depends(oauth2_scheme)):
-    bearer = jwt.decode(token, config.site.SECRET_KEY)
+    try:
+        bearer = jwt.decode(token, config.site.SECRET_KEY)
+    except JWTError as e:
+        raise HTTPException(401, 'Invalid Token')
     print(bearer)
     return get_user_by_id(bearer['uid'])
 
 async def current_active_user(user: User = Depends(current_user)):
     if user.status != UserStatus.confirmed:
-        raise HTTPException(403, 'User is not confirmed')
+        raise HTTPException(402, 'User is not confirmed')
     return user

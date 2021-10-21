@@ -2,6 +2,7 @@ import enum
 import time
 import random
 from hashlib import sha256, md5
+from typing import Any
 
 from sqlalchemy import Column, Integer, String, Enum, DateTime, BigInteger, Boolean, SmallInteger, Numeric, BINARY
 from sqlalchemy.orm import Session
@@ -109,9 +110,27 @@ class User(Base):
             return user
         else:
             raise GeneralException("Username or password wrong", 404)
+    
+    def get_profile(self, bypass_privacy=True):
+        rep = dict()
+        to_return = []
+        if bypass_privacy or self.privacy in [UserPrivacy.strong, UserPrivacy.normal, UserPrivacy.low]:
+            to_return += ['username']
+
+        if bypass_privacy or self.privacy in [UserPrivacy.normal, UserPrivacy.low]:
+            to_return += ['role','uploaded','seedtime', 'leechtime','gender']
+
+        if bypass_privacy or self.privacy in [UserPrivacy.low]:
+            to_return += ['email']
+
+        for key in to_return:
+            rep[key] = self.__getattribute__(key)
+
+        return rep
         
 
 @gg_cache(cache_type='timed_cache') # TODO: need sophisticated cache to improve performance
-def get_user_by_id(uid): 
+def get_user_by_id(uid, bypass_cache: Any=None): 
+    del bypass_cache
     db:Session = sqldb()
     return db.query(User).filter(User.id == uid).one()
