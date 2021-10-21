@@ -12,7 +12,7 @@ from datetime import datetime
 from .. import Base
 from ..helper import GeneralException
 
-from utils.cache import gg_cache
+from utils.cache import gg_cache, evict_cache_keyword
 from utils.connection.sql.db import db as sqldb
 
 class UserStatus(enum.Enum):
@@ -128,9 +128,31 @@ class User(Base):
 
         return rep
         
+    def set_passkey(self):
+        while True:
+            new_passkey = md5((str(time.time()) + self.username).encode('utf-8')).hexdigest()
+            if get_userid_by_passkey(new_passkey) is None:
+                break # the passkey is unique
+        evict_cache_keyword([self.passkey, f"get_user_by_id*({self.id},):"])
+        self.passkey = new_passkey
 
 @gg_cache(cache_type='timed_cache') # TODO: need sophisticated cache to improve performance
 def get_user_by_id(uid, bypass_cache: Any=None): 
     del bypass_cache
     db:Session = sqldb()
-    return db.query(User).filter(User.id == uid).one()
+    ret = db.query(User).filter(User.id == uid).one()
+    db.close()
+    return ret
+
+@gg_cache(cache_type='timed_cache')
+def get_userid_by_passkey(passkey, bypass_cache: Any=None):
+    del bypass_cache
+    db:Session = sqldb()
+    ret = db.query(User).filter(User.passkey == passkey)
+    try:
+        ret = ret.one().id
+        return ret
+    except:
+        return None
+    finally:
+        db.close()

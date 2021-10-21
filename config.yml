@@ -46,8 +46,10 @@ cache:
     user:
       user:
         get_user_by_id:
-          ttl: 5
+          ttl: 60
+        get_userid_by_passkey:
+          ttl: 60
     torrent:
       peer:
         get_peer_count:
-          ttl: 30           # peer count update per 30 seconds
+          ttl: 60           # peer count update per 30 seconds

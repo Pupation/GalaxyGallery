@@ -3,6 +3,7 @@ import redis
 
 from main import config
 from functools import lru_cache
+from typing import Union, List
 
 
 caches = []
@@ -65,5 +66,14 @@ def gg_cache(func=None, cache_type='lru_cache', maxsize=None):
         return wrapper
 
 def clear_cache():
-    redis_lru_cache.clear_all_cache()
+    pass
+
+def evict_cache_keyword(keyword: Union[str, List[str]]):
+    client = redis.StrictRedis(**config.cache.redis)
+    to_delete = []
+    if not isinstance(keyword, list):
+        keyword = [keyword]
+    for key in keyword:
+        to_delete += client.keys(f"*{key}*")
+    client.delete(*to_delete)
 

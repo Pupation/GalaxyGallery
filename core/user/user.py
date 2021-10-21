@@ -54,6 +54,13 @@ async def create_db():
     from models import create_all
     create_all()
 
+@router.get('/reset_passkey')
+async def reset_passkey(user:User = Depends(current_active_user), db:Session = Depends(get_sqldb)):
+    user.set_passkey()
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
 @router.get('/profile/{userid}')
 def get_profile(userid:int, user:User = Depends(current_active_user)):
 

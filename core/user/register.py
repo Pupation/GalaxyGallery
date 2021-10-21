@@ -54,6 +54,7 @@ async def register(request: Request, response: Response,bg: BackgroundTasks, db:
         )
     bg.add_task(send_mail, user.email, 'registration email', f'click this link to confirm your account http://{request.headers["host"]}/api/confirm?code={quote_plus(user.editsecret)}')
     # send_mail(user.email, 'registration email', f'click this link to confirm your account {request.headers["host"]}/api/confirm/{user.editsecret}')
+    user.set_passkey()
     db.add(user)
     db.commit()
     db.refresh(user)
