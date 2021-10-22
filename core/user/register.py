@@ -4,6 +4,7 @@ from urllib.parse import quote_plus
 
 from . import router
 from models.user.user import *
+from models.user.role import Role, URMap
 from models.helper import GeneralException
 from utils.provider import send_mail
 from utils.connection.sql.db import get_sqldb
@@ -54,10 +55,12 @@ async def register(request: Request, response: Response,bg: BackgroundTasks, db:
         )
     bg.add_task(send_mail, user.email, 'registration email', f'click this link to confirm your account http://{request.headers["host"]}/api/confirm?code={quote_plus(user.editsecret)}')
     # send_mail(user.email, 'registration email', f'click this link to confirm your account {request.headers["host"]}/api/confirm/{user.editsecret}')
-    user.set_passkey()
+    user.set_passkey(True)
+    user.add_role(db, 'unconfirmed')
     db.add(user)
     db.commit()
-    db.refresh(user)
+    # db.refresh(user)
+    # db.refresh(user)
     return {'ok': 1}
 
 @router.get('/confirm')
@@ -74,6 +77,8 @@ async def confirm(
     try:
         user.status = UserStatus.confirmed
         user.editsecret = b''
+        user.remove_role(db, 'unconfirmed')
+        user.add_role(db, 'newbie')
         db.add(user)
         db.commit()
         return {'ok': 1}

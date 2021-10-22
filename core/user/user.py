@@ -13,6 +13,7 @@ from fastapi import Header, Depends, Request, Response, HTTPException
 from fastapi.responses import HTMLResponse
 
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from utils.connection.sql.db import get_sqldb
 from models.user.user import *
@@ -47,7 +48,8 @@ async def token(
             "uid": user.id
         },
         expires_delta = expires)
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", 
+            "userid": user.id, "user": user.get_profile(True)}
 
 @router.get('/create_all') # FIXME: temora implementation for initialize the database
 async def create_db():
@@ -62,9 +64,9 @@ async def reset_passkey(user:User = Depends(current_active_user), db:Session = D
     db.refresh(user)
 
 @router.get('/profile/{userid}')
-def get_profile(userid:int, user:User = Depends(current_active_user)):
-
-    if user.id == userid:
+@router.get('/profile/')
+def get_profile(userid:Optional[int] = None, user:User = Depends(current_active_user)):
+    if user.id == userid or userid == None:
         target_user = user
         bypass_privacy = True
     else:

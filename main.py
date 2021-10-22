@@ -16,6 +16,7 @@ config = Config('config.yml')
 
 from core import *
 gg.include_router(user_router)
+gg.include_router(torrent_router)
 
 gg.add_middleware(
     CORSMiddleware,

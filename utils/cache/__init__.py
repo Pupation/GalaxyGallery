@@ -9,8 +9,9 @@ from typing import Union, List
 caches = []
 
 
-client_lru = redis.StrictRedis(**config.cache.redis)
-client_timed = redis.StrictRedis(**config.cache.redis)
+redis_connection_pool = redis.ConnectionPool(**config.cache.redis)
+client_lru = redis.StrictRedis(connection_pool=redis_connection_pool)
+client_timed = redis.StrictRedis(connection_pool=redis_connection_pool)
 from redis_lru import RedisLRU
 # redis_lru_cache = RedisLRU(client_lru, key_prefix='lru_cache')
 # redis_timed_lru_cache = RedisLRU(client_timed, key_prefix='timed_lru_cache')
@@ -69,7 +70,7 @@ def clear_cache():
     pass
 
 def evict_cache_keyword(keyword: Union[str, List[str]]):
-    client = redis.StrictRedis(**config.cache.redis)
+    client = redis.StrictRedis(connection_pool=redis_connection_pool)
     to_delete = []
     if not isinstance(keyword, list):
         keyword = [keyword]

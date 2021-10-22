@@ -6,7 +6,8 @@ db:
 
 site:
   name: "Galaxy Gallery Private Tracker"
-  domain: ['https://pt.galaxy.gallery', 'http://localhost:8080'] # for CORS checking
+  short: "[GGPT]"
+  domain: ['http://localhost:8080', 'https://pt.galaxy.gallery', 'https://6kj6r17qk.csb.app/'] # for CORS checking
   SECRET_KEY: c3ff4f4c36ab0bcd483e8bd76fbc5d43a8a76b71a582db1f96561e084be437ae
   ALGORITHM: HS256
   default:
@@ -15,6 +16,8 @@ site:
     sender: galaxygallery_no_reply@hotmail.com
     host: smtp.office365.com
     port: 587
+  preference:
+    per_page: 30
 
 client:
   baned_ports:
@@ -53,3 +56,8 @@ cache:
       peer:
         get_peer_count:
           ttl: 60           # peer count update per 30 seconds
+      torrent:
+        get_torrent_list: 
+          ttl: 30
+        get_torrent_info_hash: null
+        get_torrent_id: null

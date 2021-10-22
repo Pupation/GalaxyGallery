@@ -2,3 +2,4 @@
 
 from .tracker import *
 from .user import router as user_router
+from .torrent import router as torrent_router

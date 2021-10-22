@@ -4,7 +4,7 @@ from datetime import timedelta, datetime
 from typing import Optional
 
 from main import config
-from .user import User, UserStatus, get_user_by_id
+from .user import User, UserStatus, get_user_by_id, Permission
 
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
@@ -33,4 +33,6 @@ async def current_user(token: User = Depends(oauth2_scheme)):
 async def current_active_user(user: User = Depends(current_user)):
     if user.status != UserStatus.confirmed:
         raise HTTPException(402, 'User is not confirmed')
+    if not user.has_permission(Permission.LOGIN):
+        raise HTTPException(403, "You don't have permission to login")
     return user

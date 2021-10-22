@@ -1,11 +1,13 @@
-from fastapi import Header, Request
+from fastapi import Header, Request, HTTPException
 from datetime import timedelta
 
 from main import gg
 from utils.response import BencResponse, ErrorResponse
-from utils.checker import check_ip, check_ua_or_400, check_port_or_400
+from utils.checker import check_ip, check_ua_or_400, check_port_or_400, check_passkey
 from models.helper import ErrorException, IP
 from models.torrent import Peer, PeerList, get_peer_count
+from models.torrent.torrent import get_torrent_id
+
 
 @gg.get('/announce')
 async def announce(
@@ -26,14 +28,17 @@ async def announce(
     # print(request.headers)
     # FIXME: BEAWARE DoS! Blocked ip address still able to consume server computation resource
     try:
-
         coroutine_checkip = check_ip(ip)
-
+        coroutine_checkpasskey = check_passkey(passkey)
         torrent_client = check_ua_or_400(request)
+        torrent_id = get_torrent_id(info_hash)
         check_port_or_400(port)
         blocked_ip = await coroutine_checkip
+        userid = await coroutine_checkpasskey
         if blocked_ip:
             raise ErrorException('Blocked IP.')
+        if userid is None:
+            raise ErrorException('Passkey Invalid.')
 
         rep_dict = {
             "interval": 60,
@@ -50,7 +55,11 @@ async def announce(
                     downloaded=downloaded,
                     event=event,
                     agent=torrent_client.get("family"),
-                    seeder=seeder, **ip.todict()
+                    seeder=seeder,
+                    passkey=passkey,
+                    userid=userid,
+                    torrent=torrent_id
+                    **ip.todict()
                 )
         peers = PeerList(seeder=seeder, info_hash=info_hash, requester_ip=ip, compact=(compact == 1))
         rep_dict.update(peers())
@@ -61,16 +70,6 @@ async def announce(
             peer.commit(seeder=seeder)
         return BencResponse(rep_dict)
     except ErrorException as e:
-        return ErrorResponse(e.__repr__())
-
-
-@gg.get('/scrape')
-async def scrape(
-    request:Request,
-    info_hash: bytes,
-    passkey: str
-):
-    rep_dict = {
-        "files": get_peer_count(info_hash)
-    }
-    return BencResponse(rep_dict)
+        return ErrorResponse(e.__repr__(), 401)
+    except HTTPException as e:
+        return ErrorResponse('Not found',404)

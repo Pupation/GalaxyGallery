@@ -4,4 +4,14 @@ Base = declarative_base()
 
 def create_all():
     from utils.connection.sql.db import engine
+    from utils.connection.sql.db import get_sqldb
     Base.metadata.create_all(bind=engine)
+
+    from .user.role import Role
+    for db in get_sqldb():
+        db.add(Role(role_name='unconfirmed', admin=False, permissions=0))
+        db.add(Role(role_name='admin', admin=True, permissions=0))
+        db.add(Role(role_name='newbie', admin=False, permissions=0))
+        db.add(Role(role_name='{customize}', admin=False, permissions=0))
+        db.commit()
+        db.close()

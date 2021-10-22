@@ -3,9 +3,10 @@ import time
 import random
 from hashlib import sha256, md5
 from typing import Any
+from typing import Union, List
 
-from sqlalchemy import Column, Integer, String, Enum, DateTime, BigInteger, Boolean, SmallInteger, Numeric, BINARY
-from sqlalchemy.orm import Session
+from sqlalchemy import Column, Integer, String, Enum, DateTime, BigInteger, Boolean, SmallInteger, Numeric, BINARY, ForeignKey
+from sqlalchemy.orm import Session, relationship
 from sqlalchemy.sql import func
 from datetime import datetime
 
@@ -14,6 +15,11 @@ from ..helper import GeneralException
 
 from utils.cache import gg_cache, evict_cache_keyword
 from utils.connection.sql.db import db as sqldb
+from utils.provider.size_parser import parse_size
+
+from .role import Role, URMap, Permission
+
+SIZE_VAR = ['uploaded', 'downloaded']
 
 class UserStatus(enum.Enum):
     pending = 1
@@ -45,7 +51,8 @@ class User(Base):
     email = Column(String(128), nullable=False, default='')
     status = Column(Enum(UserStatus), nullable=False, default=UserStatus.pending)
     join = Column(DateTime, nullable=False, default=datetime.now())
-    role = Column(SmallInteger, nullable=False, default=0)
+    # role_id = Column(SmallInteger, ForeignKey('roles.id'), nullable=False, default=0)
+    role = relationship('URMap', lazy='joined')
 
     last_login = Column(DateTime, nullable=False, default=datetime.now())
     last_access = Column(DateTime, nullable=False, default=datetime.now())
@@ -59,6 +66,7 @@ class User(Base):
     seedtime = Column(BigInteger, nullable=False, default=0)
     leechtime = Column(BigInteger, nullable=False, default=0)
 
+    anonymous = Column(Boolean, nullable=False, default=True)
     enabled = Column(Boolean, nullable=False, default=True)
     warned = Column(Boolean, nullable=False, default=False)
     warneduntil = Column(DateTime, nullable=True)
@@ -102,6 +110,8 @@ class User(Base):
     @staticmethod
     def login(db:Session, username, password):
         user = db.query(User).filter(User.username == username).one()
+        if not user.has_permission(Permission.LOGIN):
+            raise GeneralException('You do not have permission to login',403)
         if user.validate_password(password):
             user.last_login = datetime.now()
             db.add(user)
@@ -118,23 +128,65 @@ class User(Base):
             to_return += ['username']
 
         if bypass_privacy or self.privacy in [UserPrivacy.normal, UserPrivacy.low]:
-            to_return += ['role','uploaded','seedtime', 'leechtime','gender']
+            to_return += ['role','uploaded', 'downloaded', 'seedtime', 'leechtime','gender']
 
         if bypass_privacy or self.privacy in [UserPrivacy.low]:
             to_return += ['email']
 
         for key in to_return:
             rep[key] = self.__getattribute__(key)
+            if key in SIZE_VAR:
+                rep[key] = "%.2f %s" % parse_size(rep[key])
 
+        rep['role'] = self.get_role()
         return rep
+    
+    def get_role(self):
+        max_priority = -1
+        role_name = 'N/A'
+        for role in self.role:
+            if role.priority > max_priority:
+                max_priority = role.priority
+                role_name = role.role.role_name.format(customize=role.payload)
+                role_color = role.role.color
+        return {'name': role_name, 'color': f"#{role_color:06x}"}
+                
         
-    def set_passkey(self):
+    def set_passkey(self, new=False):
         while True:
             new_passkey = md5((str(time.time()) + self.username).encode('utf-8')).hexdigest()
             if get_userid_by_passkey(new_passkey) is None:
                 break # the passkey is unique
-        evict_cache_keyword([self.passkey, f"get_user_by_id*({self.id},):"])
+        if not new:
+            evict_cache_keyword([self.passkey, f"get_user_by_id*({self.id},):"])
         self.passkey = new_passkey
+    
+    def add_role(self, db: Session, role_name: str, priority: int = 1):
+        role = db.query(Role).filter(Role.role_name == role_name).one()
+        urmap = URMap(role=role, priority=priority)
+        self.role.append(urmap)
+        db.add(urmap)
+
+    def remove_role(self, db: Session, role_name: str):
+        for role in self.role:
+            if role.role.role_name == role_name:
+                self.role.remove(role)
+                db.delete(role)
+        db.add(self)
+
+    def has_permission(self, permission: Union[int, List[int]]):
+        if isinstance(permission, int):
+            permission = [permission]
+        ret = True
+        for p in permission:
+            tmp = False
+            for p_role in self.role:
+                if p_role.role.has_permission(p):
+                    tmp = True
+                    break
+            ret = ret and tmp
+        return ret
+
 
 @gg_cache(cache_type='timed_cache') # TODO: need sophisticated cache to improve performance
 def get_user_by_id(uid, bypass_cache: Any=None): 

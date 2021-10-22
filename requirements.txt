@@ -18,6 +18,7 @@ pydantic==1.8.2
 pymongo==3.12.0
 PyMySQL==1.0.2
 python-jose==3.3.0
+python-multipart==0.0.5
 PyYAML==5.4.1
 redis==3.5.3
 redis-lru==0.1.0
