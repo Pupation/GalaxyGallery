@@ -12,6 +12,8 @@ from . import router
 from fastapi import Header, Depends, Request, Response, HTTPException
 from fastapi.responses import HTMLResponse
 
+from pydantic import BaseModel
+
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -23,16 +25,21 @@ from models.user.auth import create_access_token, current_active_user
 async def login():
     return HTMLResponse("<input name='username'/> <input name='password' type='password'/> <input type='submit'/>")
 
+class LoginForm(BaseModel):
+    username: str
+    password: str
+    expires: Optional[int]
+
 @router.post('/token/')
 async def token(
     request: Request,
     response: Response,
-    db: Session = Depends(get_sqldb)
+    form: LoginForm,
+    db: Session = Depends(get_sqldb),
 ):
     try:
-        form = await request.json()
-        user = User.login(db, form['username'], form['password'])
-        expires = form.get('expires', None)
+        user = User.login(db, form.username, form.password)
+        expires = form.expires
         if expires is not None:
             expires = EXPIRATION[expires]
     except GeneralException as ge:

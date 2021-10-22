@@ -9,17 +9,28 @@ from models.helper import GeneralException
 from utils.provider import send_mail
 from utils.connection.sql.db import get_sqldb
 
+from pydantic import BaseModel
+from typing import Optional
+
 from .utils import validate_password, validate_username
 
 def check_exists(db, username, email):
     user = db.query(User).filter((User.username == username) | (User.email == email)).count()
     return user > 0
 
+class RegisterForm(BaseModel):
+    username: str
+    password: str
+    email: str
+    school: Optional[int]
+    country: Optional[int]
+    invitation_code: Optional[str]
+
 @router.post('/register/')
-async def register(request: Request, response: Response,bg: BackgroundTasks, db:Session = Depends(get_sqldb)):
+async def register(request: Request, response: Response,bg: BackgroundTasks, form:RegisterForm , db:Session = Depends(get_sqldb)):
     try:
         try:
-            form = await request.json()
+            form = form.dict() # FIXME: dirty hack
         except:
             raise GeneralException('Form not complete.', 400)
         try:

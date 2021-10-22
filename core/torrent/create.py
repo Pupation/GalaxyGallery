@@ -13,7 +13,9 @@ from utils.cache import redis_connection_pool
 from utils.provider.torrent import Torrent
 from utils.connection.sql.db import get_sqldb
 from utils.connection.nosql.db import client as nosql_db
+from pydantic import BaseModel
 from main import config
+from typing import Optional
 
 def is_valid_uuid4(_uuid):
     try:
@@ -24,17 +26,12 @@ def is_valid_uuid4(_uuid):
 
 
 @router.post('/create_torrent')
-async def create_torrent(request: Request, user: User = Depends(current_active_user), db: Session = Depends(get_sqldb)):
+async def create_torrent(request: Request,form: CreateTorrentForm, user: User = Depends(current_active_user), db: Session = Depends(get_sqldb)):
     if not user.has_permission([Permission.UPLOAD, Permission.UPLOAD_TORRENT]):
         raise HTTPException(403, 'You do not have permission to upload file')
 
     cache: redis.StrictRedis = redis.StrictRedis(
         connection_pool=redis_connection_pool)
-    form = await request.json()
-    try:
-        form = CreateTorrentForm(**form)
-    except:
-        raise HTTPException(400, 'Bad request')
     if not is_valid_uuid4(form.file_id) or not cache.exists(form.file_id):
         raise HTTPException(410, 'File not found')
     if is_valid_uuid4(form.nfo_id) and not cache.exists(form.nfo_id):
