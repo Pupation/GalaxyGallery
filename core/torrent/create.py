@@ -1,6 +1,6 @@
 from . import router
 
-from fastapi import Request, HTTPException, Depends
+from fastapi import Request, HTTPException, Depends, File, UploadFile
 from datetime import timedelta, datetime
 import redis
 import uuid
@@ -71,21 +71,21 @@ async def create_torrent(request: Request,form: CreateTorrentForm, user: User = 
 
 
 @router.post('/upload_file')
-async def upload_torrent(request: Request, user: User = Depends(current_active_user)):
+async def upload_torrent(request: Request, file: UploadFile = File(...), user: User = Depends(current_active_user)):
+    file_content = file.read()
     if not user.has_permission(Permission.UPLOAD):
         raise HTTPException(403, 'You do not have permission to upload file')
     cache = redis.StrictRedis(connection_pool=redis_connection_pool)
     file_id = str(uuid.uuid4())
-    form = await request.form()
+    # form = await request.form()
     # print(form['file'].read())
     # print(form['file'])
     try:
-        filename = form.get('file').filename
+        filename = file.filename
     except:
         filename = 'N/A'
-    file_content = await form.get('file').read()
     if filename.endswith('.torrent'):
-        torrent = Torrent(file_content)
+        torrent = Torrent(await file_content)
         cache.set(file_id, torrent.get_torrent(), timedelta(hours=12))
         file_list = torrent.get_filelist()
         return {
