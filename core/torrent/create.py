@@ -15,7 +15,7 @@ from utils.connection.sql.db import get_sqldb
 from utils.connection.nosql.db import client as nosql_db
 from pydantic import BaseModel
 from main import config
-from typing import Optional
+from typing import Optional, List
 
 def is_valid_uuid4(_uuid):
     try:
@@ -69,8 +69,18 @@ async def create_torrent(request: Request,form: CreateTorrentForm, user: User = 
     db.refresh(torrent_sql)
     return {'ok': 1, 'id': torrent_sql.id}
 
+class UploadTorrentResponse(BaseModel):
+    id: str
+    name: str
+    exp: datetime
+    size: Optional[str]
+    files: Optional[List[str]]
+    info_hash: Optional[str]
+    nfo: Optional[bool]
 
-@router.post('/upload_file')
+@router.post('/upload_file', responses={
+    200: {'model': UploadTorrentResponse}
+})
 async def upload_torrent(request: Request, file: UploadFile = File(...), user: User = Depends(current_active_user)):
     file_content = file.read()
     if not user.has_permission(Permission.UPLOAD):
