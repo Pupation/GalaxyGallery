@@ -119,7 +119,7 @@ class User(Base):
             db.refresh(user)
             return user
         else:
-            raise GeneralException("Username or password wrong", 404)
+            raise GeneralException("Username or password wrong", 401)
     
     def get_profile(self, bypass_privacy=True):
         rep = dict()

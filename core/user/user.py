@@ -55,6 +55,7 @@ class LoginResponse(BaseModel):
 @router.post('/token/', responses={
     200: {'model': LoginResponse},
     401: {'model': ErrorResponseForm},
+    403: {'model': ErrorResponseForm},
     400: {'model': ErrorResponseForm},
 })
 async def token(
