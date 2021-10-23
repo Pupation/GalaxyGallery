@@ -9,7 +9,7 @@ from models.helper import GeneralException
 from utils.provider import send_mail
 from utils.connection.sql.db import get_sqldb
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, validator
 from typing import Optional
 
 from .utils import validate_password, validate_username
@@ -21,12 +21,44 @@ def check_exists(db, username, email):
 class RegisterForm(BaseModel):
     username: str
     password: str
-    email: str
+    email: EmailStr
     school: Optional[int]
     country: Optional[int]
     invitation_code: Optional[str]
 
-@router.post('/register/')
+    @validator('password')
+    def passwords_complex(cls, v):
+        lowercase = False
+        uppercase = False
+        number = False
+        for c in v:
+            if c in range(ord('0'), ord('9') + 1):
+                number = True
+                continue
+            if c in range(ord('A'), ord('Z') + 1):
+                uppercase = True
+                continue
+            if c in range(ord('a'), ord('z') + 1):
+                lowercase = True
+                continue
+        if not lowercase or not uppercase or not number:
+            raise ValueError('Password must meet requirements')
+        return v
+    
+    @validator('username')
+    def verify_username(cls, v):
+        if '!' in v:
+            raise ValueError('Username must not contain "!"')
+        return v
+
+class RegisterResponse(BaseModel):
+    ok: int = 1
+
+class RegisterErrorResponse(BaseModel):
+    error: int
+    detail: str
+
+@router.post('/register/', response_model=RegisterResponse, responses= {409:{"model": RegisterErrorResponse}})
 async def register(request: Request, response: Response,bg: BackgroundTasks, form:RegisterForm , db:Session = Depends(get_sqldb)):
     try:
         try:
@@ -44,10 +76,10 @@ async def register(request: Request, response: Response,bg: BackgroundTasks, for
             raise GeneralException('Form not complete.', 400)
         if check_exists(db, username, email):
             raise GeneralException('Username or email already exists.', 409)
-        if not validate_password(password):
-            raise GeneralException('Password not valid.', 400)
-        if not validate_username(username):
-            raise GeneralException('Username not valid.', 400)
+        # if not validate_password(password):
+        #     raise GeneralException('Password not valid.', 400)
+        # if not validate_username(username):
+        #     raise GeneralException('Username not valid.', 400)
         secret = User.gen_secret()
         passhash = User.get_passhash(secret, password)
     except GeneralException as ge:
