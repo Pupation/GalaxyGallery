@@ -28,9 +28,9 @@ class TorrentListReturn(BaseModel):
         name: str
         subname: str
         downloaded: int
-        completed: int
+        complete: int
         incomplete: int
-        size: str
+        size: tuple
     data: List[TorrentBreifResponse]
     page: int
     total: int
@@ -42,7 +42,9 @@ async def torrent_list(request: Request,
                        advanced: bool = False,
                        _: User = Depends(current_active_user)
                        ):
-    return get_torrent_list(page)
+    ret = get_torrent_list(page)
+    print(ret)
+    return ret
 
 class TorrentDetailResponse(BaseModel):
     info_hash: bytes
