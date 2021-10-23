@@ -11,6 +11,7 @@ from utils.connection.sql.db import get_sqldb
 
 from pydantic import BaseModel, EmailStr, validator
 from typing import Optional
+import re
 
 from .utils import validate_password, validate_username
 
@@ -28,20 +29,7 @@ class RegisterForm(BaseModel):
 
     @validator('password')
     def passwords_complex(cls, v):
-        lowercase = False
-        uppercase = False
-        number = False
-        for c in v:
-            if c in range(ord('0'), ord('9') + 1):
-                number = True
-                continue
-            if c in range(ord('A'), ord('Z') + 1):
-                uppercase = True
-                continue
-            if c in range(ord('a'), ord('z') + 1):
-                lowercase = True
-                continue
-        if not lowercase or not uppercase or not number:
+        if not re.match("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z]).+$", v):
             raise ValueError('Password must meet requirements')
         return v
     
