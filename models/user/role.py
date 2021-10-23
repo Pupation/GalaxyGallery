@@ -9,6 +9,7 @@ class Permission(Integer):
     UPLOAD = 0x2
     UPLOAD_TORRENT = 0x4
     BYPASS_VOTE_TORRENT = 0x8
+    DOWNLOAD_TORRENT = 0x10
 
     NO_LEECH = 0x1000000
     NO_SEED  = 0x2000000

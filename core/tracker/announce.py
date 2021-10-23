@@ -1,5 +1,7 @@
 from fastapi import Header, Request, HTTPException
 from datetime import timedelta
+import re
+from urllib.parse import unquote_to_bytes
 
 from main import gg
 from utils.response import BencResponse, ErrorResponse
@@ -20,13 +22,13 @@ async def announce(
     supportcrypto: bool = False, requirecrypto: bool = False,
     ipv6: str = None
 ):
+    del info_hash # fastapi did some silly converting here, thus we delete it and parse it by ourseleves
     if event not in ['started', 'completed', 'stopped', 'paused', '']:
         return ErrorResponse('Unknown event.')
-    # print(info_hash, peer_id)
     ip = IP(request.client.host, ipv6) # FIXME: get ip
-    
-    # print(request.headers)
     # FIXME: BEAWARE DoS! Blocked ip address still able to consume server computation resource
+    info_hash = re.findall('info_hash=([^&]*)',str(request.url))[0]
+    info_hash = unquote_to_bytes(info_hash)
     try:
         coroutine_checkip = check_ip(ip)
         coroutine_checkpasskey = check_passkey(passkey)
@@ -58,7 +60,7 @@ async def announce(
                     seeder=seeder,
                     passkey=passkey,
                     userid=userid,
-                    torrent=torrent_id
+                    torrent=torrent_id,
                     **ip.todict()
                 )
         peers = PeerList(seeder=seeder, info_hash=info_hash, requester_ip=ip, compact=(compact == 1))
@@ -73,3 +75,6 @@ async def announce(
         return ErrorResponse(e.__repr__(), 401)
     except HTTPException as e:
         return ErrorResponse('Not found',404)
+    # except:
+    #     return ErrorResponse('Bad request',400)
+

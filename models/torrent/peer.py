@@ -129,7 +129,6 @@ class PeerList:
         if self.has_ipv6:
             query_params['$or'].append({ 'ipv6': { "$nin": [None, requester_ip.ipv6]}})
             result_projection['ipv6'] = 1
-        
         if seeder:
             query_params['seeder'] = False
         self.records = nosql_client.peers.find(query_params, result_projection)
@@ -139,14 +138,13 @@ class PeerList:
     def __call__(self, num_want=40): # TODO: num_want
         ret_v4 = []
         ret_v6 = []
-        if self.has_ipv4:
-            for record in self.records:
+        for record in self.records:
+            if self.has_ipv4:
                 ipv4 = record.get('ipv4', None)
                 if ipv4 is None:
                     continue
                 ret_v4.append({'ip': ipv4, 'port': record.get('port')})
-        if self.has_ipv6:
-            for record in self.records:
+            if self.has_ipv6:
                 ipv6 = record.get('ipv6', None)
                 if ipv6 is None:
                     continue

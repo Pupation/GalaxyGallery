@@ -31,13 +31,16 @@ def _check_db(ip: int, version: int):
         })
         return ret is not None
     else:
-        higher64 = ip >> 64
-        lower64 = ip & 0xffffffffffffffffffff
+        higher63 = (ip >> 65) & 0x7FFFFFFF
+        mid63 = (ip & 0x1ffffffffffffffE) >> 1
+        lower2 = ip & 0x3
         ret = client.ip_blacklist.find_one({
-            "lower": { "$lte" : higher64 },
-            "higher": { "$gte": higher64 },
-            "sub_higher": {"$gte": lower64},
-            "sub_lower": {"$lte": lower64},
+            "lower": { "$lte" : higher63 },
+            "higher": { "$gte": higher63 },
+            "mid_higher": {"$gte": mid63},
+            "mid_lower": {"$lte": mid63},
+            "lower_higher": {"$lte": lower2},
+            "lower_lower": {"$gte": lower2},
             "version": 6,
         })
         return ret is not None

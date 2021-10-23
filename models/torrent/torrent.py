@@ -15,7 +15,10 @@ from .peer import get_peer_count
 from utils.cache import gg_cache, evict_cache_keyword
 from utils.connection.sql.db import get_sqldb
 from utils.connection.nosql.db import client
+from utils.provider.size_parser import parse_size
 from main import config
+
+from pydantic import BaseModel
 
 
 class TorrentStatus(enum.Enum):
@@ -113,6 +116,7 @@ def get_torrent_list(page: int = 0, keyword: str = None):
                     'name': t.name,
                     'subname': t.subname,
                     'downloaded': t.finished,
+                    'size': parse_size(t.size),
                     **get_peer_count(t.info_hash)
                 }
             )
@@ -139,7 +143,7 @@ def get_torrent_id(torrent_info_hash):
             record = db.query(TorrentSQL).filter(TorrentSQL.info_hash == torrent_info_hash).one()
             return record.id
         except:
-            HTTPException(404, 'Torrent does not exsit')
+            raise HTTPException(404, 'Torrent does not exsit')
 
 
 def get_torrent_detail(torrent_id: int, torrent: int):

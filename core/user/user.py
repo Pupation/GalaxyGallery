@@ -1,4 +1,6 @@
 from datetime import timedelta
+
+from pydantic.networks import EmailStr
 EXPIRATION = [
     timedelta(minutes=15),
     timedelta(minutes=60),
@@ -30,7 +32,25 @@ class LoginForm(BaseModel):
     password: str
     expires: Optional[int]
 
-@router.post('/token/')
+class LoginResponse(BaseModel):
+    class UserResponse(BaseModel):
+        class RoleResponse(BaseModel):
+            name: str
+            color: str
+        username: str
+        role: Optional[RoleResponse]
+        uploaded: Optional[str]
+        downloaded: Optional[str]
+        seedtime: Optional[int]
+        leechtime: Optional[int]
+        gender: Optional[UserGender]
+        email: Optional[EmailStr]
+    access_token: str
+    token_type: str = 'bearer'
+    userid: int
+    user: UserResponse
+
+@router.post('/token/', response_model=LoginResponse)
 async def token(
     request: Request,
     response: Response,
@@ -55,8 +75,10 @@ async def token(
             "uid": user.id
         },
         expires_delta = expires)
-    return {"access_token": access_token, "token_type": "bearer", 
+    ret = {"access_token": access_token, "token_type": "bearer", 
             "userid": user.id, "user": user.get_profile(True)}
+    print(ret)
+    return ret
 
 @router.get('/create_all') # FIXME: temora implementation for initialize the database
 async def create_db():
