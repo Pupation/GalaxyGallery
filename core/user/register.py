@@ -46,7 +46,11 @@ class RegisterErrorResponse(BaseModel):
     error: int
     detail: str
 
-@router.post('/register/', response_model=RegisterResponse, responses= {409:{"model": RegisterErrorResponse}})
+@router.post('/register/', 
+    responses={
+        200: {"model": RegisterResponse},
+        409: {"model": RegisterErrorResponse}
+    })
 async def register(request: Request, response: Response,bg: BackgroundTasks, form:RegisterForm , db:Session = Depends(get_sqldb)):
     try:
         try:
@@ -73,9 +77,6 @@ async def register(request: Request, response: Response,bg: BackgroundTasks, for
     except GeneralException as ge:
         response.status_code = ge.retcode
         return {'error': ge.retcode, 'detail': ge.message}
-
-        
-    
 
     user = User(
             username=username, 
