@@ -77,7 +77,7 @@ class TorrentNoSQL(BaseModel):
     filename: Optional[str]
     desc: str
     info_hash: bytes
-    torrent: bytes
+    torrent: Optional[bytes]
     detail: Dict[str, Any]
 
 class CreateTorrentForm(BaseModel):
@@ -148,10 +148,16 @@ def get_torrent_id(torrent_info_hash):
 
 def get_torrent_detail(torrent_id: int, torrent: int):
     info_hash = get_torrent_info_hash(torrent_id)
+    projection = {'_id': 0, 
+                    'torrent': torrent,
+                'info_hash': 1, 'desc': 1, 'detail': 1, 'filename': 1}
+    for key in list(projection.keys()):
+        if projection[key] == 0:
+            projection.pop(key)
+
     ret = client.torrents.find(
         {'info_hash': info_hash},
-        {'_id': 0, 'torrent': torrent,
-        'info_hash': 1, 'desc': 1, 'detail': 1, 'filename': 1}
+        projection
     )
     for r in ret:
         record = dict(TorrentNoSQL(**r))

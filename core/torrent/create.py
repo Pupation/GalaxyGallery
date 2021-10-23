@@ -94,23 +94,26 @@ async def upload_torrent(request: Request, file: UploadFile = File(...), user: U
         filename = file.filename
     except:
         filename = 'N/A'
-    if filename.endswith('.torrent'):
-        torrent = Torrent(await file_content)
-        cache.set(file_id, torrent.get_torrent(), timedelta(hours=12))
-        file_list = torrent.get_filelist()
-        return {
-            'id': file_id,
-            'name': filename,
-            'size': "%.2f %s" % torrent.get_size(True),
-            'files': file_list,
-            'exp': datetime.utcnow() + timedelta(hours=12),
-            'info_hash': torrent.get_info_hash().hex(),
-            'nfo': any([f.endswith('.nfo') for f in file_list])
-        }
-    else:
-        cache.set(file_id, file_content, timedelta(hours=12))
-        return {
-            'id': file_id,
-            'name': filename,
-            'exp': datetime.utcnow() + timedelta(hours=12),
-        }
+    try:
+        if filename.endswith('.torrent'):
+            torrent = Torrent(await file_content)
+            cache.set(file_id, torrent.get_torrent(), timedelta(hours=12))
+            file_list = torrent.get_filelist()
+            return {
+                'id': file_id,
+                'name': filename,
+                'size': "%.2f %s" % torrent.get_size(True),
+                'files': file_list,
+                'exp': datetime.utcnow() + timedelta(hours=12),
+                'info_hash': torrent.get_info_hash().hex(),
+                'nfo': any([f.endswith('.nfo') for f in file_list])
+            }
+        else:
+            cache.set(file_id, await file_content, timedelta(hours=12))
+            return {
+                'id': file_id,
+                'name': filename,
+                'exp': datetime.utcnow() + timedelta(hours=12),
+            }
+    except:
+        raise HTTPException(413, "Connection Aborted")

@@ -47,14 +47,16 @@ async def torrent_list(request: Request,
     return ret
 
 class TorrentDetailResponse(BaseModel):
-    info_hash: bytes
+    info_hash: str
     desc: str
-    detail: str
+    detail: Optional[dict]
     filename: str
 
 @router.get('/torrent_detail/{torrent_id}', response_model=TorrentDetailResponse)
 async def torrent_detail(request: Request, torrent_id: int, _: User = Depends(current_active_user)):
-    return get_torrent_detail(torrent_id)
+    ret = get_torrent_detail(torrent_id, 0)
+    ret['info_hash'] = ret['info_hash'].hex()
+    return ret
 
 @router.get("/download_torrent")
 async def download_torrent(request: Request, torrent_id: int, user: User = Depends(current_active_user)):
