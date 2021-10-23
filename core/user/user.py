@@ -23,6 +23,8 @@ from utils.connection.sql.db import get_sqldb
 from models.user.user import *
 from models.user.auth import create_access_token, current_active_user
 
+from .register import ErrorResponseForm
+
 @router.get('/login')
 async def login():
     return HTMLResponse("<input name='username'/> <input name='password' type='password'/> <input type='submit'/>")
@@ -50,7 +52,11 @@ class LoginResponse(BaseModel):
     userid: int
     user: UserResponse
 
-@router.post('/token/', response_model=LoginResponse)
+@router.post('/token/', responses={
+    200: {'model': LoginResponse},
+    401: {'model': ErrorResponseForm},
+    400: {'model': ErrorResponseForm},
+})
 async def token(
     request: Request,
     response: Response,
@@ -64,10 +70,10 @@ async def token(
             expires = EXPIRATION[expires]
     except GeneralException as ge:
         response.status_code = ge.retcode
-        return {'detail': ge.message}
+        return {'error': ge.retcode, 'detail': ge.message}
     except:
         response.status_code = 400
-        return {'detail': 'Bad request'}
+        return {'error': 400,'detail': 'Bad request'}
     
     access_token = create_access_token(
         {
@@ -77,7 +83,6 @@ async def token(
         expires_delta = expires)
     ret = {"access_token": access_token, "token_type": "bearer", 
             "userid": user.id, "user": user.get_profile(True)}
-    print(ret)
     return ret
 
 @router.get('/create_all') # FIXME: temora implementation for initialize the database

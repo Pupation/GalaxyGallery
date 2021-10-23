@@ -42,14 +42,14 @@ class RegisterForm(BaseModel):
 class RegisterResponse(BaseModel):
     ok: int = 1
 
-class RegisterErrorResponse(BaseModel):
+class ErrorResponseForm(BaseModel):
     error: int
     detail: str
 
 @router.post('/register/', 
     responses={
         200: {"model": RegisterResponse},
-        409: {"model": RegisterErrorResponse}
+        409: {"model": ErrorResponseForm}
     })
 async def register(request: Request, response: Response,bg: BackgroundTasks, form:RegisterForm , db:Session = Depends(get_sqldb)):
     try:
