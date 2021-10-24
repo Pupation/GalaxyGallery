@@ -109,17 +109,21 @@ class User(Base):
     
     @staticmethod
     def login(db:Session, username, password):
-        user = db.query(User).filter(User.username == username).one()
-        if not user.has_permission(Permission.LOGIN):
-            raise GeneralException('You do not have permission to login',403)
-        if user.validate_password(password):
-            user.last_login = datetime.now()
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-            return user
-        else:
+        try:
+            user = db.query(User).filter(User.username == username).one()
+            if not user.has_permission(Permission.LOGIN):
+                raise GeneralException('You do not have permission to login',403)
+            if user.validate_password(password):
+                user.last_login = datetime.now()
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+                return user
+            else:
+                raise GeneralException("Username or password wrong", 401)
+        except:
             raise GeneralException("Username or password wrong", 401)
+
     
     def get_profile(self, bypass_privacy=True):
         rep = dict()
