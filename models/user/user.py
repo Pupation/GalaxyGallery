@@ -109,8 +109,10 @@ class User(Base):
     
     @staticmethod
     def login(db:Session, username, password):
-        try:
-            user = db.query(User).filter(User.username == username).one()
+            try:
+                user = db.query(User).filter(User.username == username).one()
+            except:
+                raise GeneralException("Username or password wrong", 401)
             if not user.has_permission(Permission.LOGIN):
                 raise GeneralException('You do not have permission to login',403)
             if user.validate_password(password):
@@ -121,8 +123,6 @@ class User(Base):
                 return user
             else:
                 raise GeneralException("Username or password wrong", 401)
-        except:
-            raise GeneralException("Username or password wrong", 401)
 
     
     def get_profile(self, bypass_privacy=True):

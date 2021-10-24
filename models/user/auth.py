@@ -27,12 +27,12 @@ async def current_user(token: User = Depends(oauth2_scheme)):
         bearer = jwt.decode(token, config.site.SECRET_KEY)
     except JWTError as e:
         raise HTTPException(401, 'Invalid Token')
-    print(bearer)
-    return get_user_by_id(bearer['uid'])
+    user = get_user_by_id(bearer['uid'])
+    if not user.has_permission(Permission.LOGIN):
+        raise HTTPException(403, "You don't have permission to login")
+    return user
 
 async def current_active_user(user: User = Depends(current_user)):
     if user.status != UserStatus.confirmed:
         raise HTTPException(402, 'User is not confirmed')
-    if not user.has_permission(Permission.LOGIN):
-        raise HTTPException(403, "You don't have permission to login")
     return user
