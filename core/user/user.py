@@ -11,7 +11,7 @@ EXPIRATION = [
 ]
 from . import router
 
-from fastapi import Header, Depends, Request, Response, HTTPException
+from fastapi import Depends, Request, Response, HTTPException
 from fastapi.responses import HTMLResponse
 
 from pydantic import BaseModel

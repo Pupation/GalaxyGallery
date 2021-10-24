@@ -1,10 +1,11 @@
-from fastapi import Request, Response, Depends, BackgroundTasks
+from fastapi import Request, Response, Depends, BackgroundTasks, HTTPException
 from sqlalchemy.orm import Session
 from urllib.parse import quote_plus
 
 from . import router
 from models.user.user import *
 from models.user.role import Role, URMap
+from models.user.auth import current_user
 from models.helper import GeneralException
 from utils.provider import send_mail
 from utils.connection.sql.db import get_sqldb
@@ -117,3 +118,14 @@ async def confirm(
     except:
         response.status_code = 500
         return {'error': 500, 'detail': 'Internal error, failed to update database.'}
+
+@router.get('/resend_email')
+def resend_mail(backgroundTasks: BackgroundTasks,user: User = Depends(current_user), responses = {
+    200: {'model': ErrorResponseForm},
+    403: {'model': ErrorResponseForm}
+}):
+    if user.editsecret == '' or user.status == UserStatus.confirmed:
+        raise HTTPException(403, 'You are not allowed to do this')
+    else:
+        backgroundTasks.add_task(send_mail, user.email, "Confirmation email", f'Your url is http://localhost:8000/confirm?code={quote_plus(user.editsecret)}')
+        return {'error': 0, 'detail': 'success'}

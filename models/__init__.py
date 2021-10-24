@@ -9,9 +9,9 @@ def create_all():
 
     from .user.role import Role
     for db in get_sqldb():
-        db.add(Role(role_name='unconfirmed', admin=False, permissions=0))
+        db.add(Role(role_name='unconfirmed', admin=False, permissions=1))
         db.add(Role(role_name='admin', admin=True, permissions=0))
-        db.add(Role(role_name='newbie', admin=False, permissions=0))
+        db.add(Role(role_name='newbie', admin=False, permissions=1))
         db.add(Role(role_name='{customize}', admin=False, permissions=0))
         db.commit()
         db.close()
