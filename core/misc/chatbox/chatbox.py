@@ -2,6 +2,7 @@ from . import chatbox_router
 from main import gg
 import redis
 import json
+import asyncio
 
 from fastapi import WebSocket, HTTPException
 from fastapi.responses import HTMLResponse
@@ -56,14 +57,14 @@ def register_websocket_sub():
             print("Redis subscriber exited!")
             break
         data = json.loads(message['data'])
-        if data['receiver'] == -1:
-            manager.broadcast(data)
+        if data['receiver_uid'] == -1:
+            asyncio.run(manager.broadcast_json(data))
 
 @gg.on_event('startup')
 def launch_thread():
     print('---------try luanching')
     t = threading.Thread(target=register_websocket_sub)
-    # t.start()
+    t.start()
 
 @gg.get('/kill')
 async def kill():
@@ -85,7 +86,7 @@ html = html = """
         <ul id='messages'>
         </ul>
         <script>
-            var ws = new WebSocket("ws://localhost:8000/chatbox/ws?token=");
+            var ws = new WebSocket("ws://localhost:8000/chatbox/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiYWRtaW4iLCJ1aWQiOjEsImV4cCI6MTY2NjQwMDIyMn0.B43L8FRJNgcQMpnsykOe_ULD9ZznHCTzyLFHGv63hSA");
             ws.onmessage = function(event) {
                 var messages = document.getElementById('messages')
                 var message = document.createElement('li')
@@ -95,7 +96,7 @@ html = html = """
             };
             function sendMessage(event) {
                 var input = document.getElementById("messageText")
-                ws.send(input.value)
+                ws.send(JSON.stringify({ sender_uid: 1, receiver_uid: -1, content: input.text, send_time: "2012-04-23T18:25:43.511Z", quote: 0 }))
                 input.value = ''
                 event.preventDefault()
             }
