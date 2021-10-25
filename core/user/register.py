@@ -119,11 +119,11 @@ async def confirm(
         response.status_code = 500
         return {'error': 500, 'detail': 'Internal error, failed to update database.'}
 
-@router.get('/resend_email')
-def resend_mail(backgroundTasks: BackgroundTasks,user: User = Depends(current_user), responses = {
+@router.get('/resend_email', responses = {
     200: {'model': ErrorResponseForm},
     403: {'model': ErrorResponseForm}
-}):
+})
+def resend_mail(backgroundTasks: BackgroundTasks,user: User = Depends(current_user)):
     if user.editsecret == '' or user.status == UserStatus.confirmed:
         raise HTTPException(403, 'You are not allowed to do this')
     else:
