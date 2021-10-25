@@ -42,7 +42,7 @@ async def torrent_list(request: Request,
                        advanced: bool = False,
                        _: User = Depends(current_active_user)
                        ):
-    ret = get_torrent_list(page)
+    ret = await get_torrent_list(page)
     print(ret)
     return ret
 

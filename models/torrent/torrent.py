@@ -59,6 +59,7 @@ class TorrentSQL(Base):
     anonymous = Column(Boolean, default=False, nullable=False)
     size = Column(BigInteger, nullable=False, default=0)
     info_hash = Column(BINARY(20), nullable=False, default=b'0'*20, unique=True)
+    info_hash_plain = Column(BINARY(20), nullable=False, default=b'0'*20, unique=True)
     numfiles = Column(SmallInteger, nullable=False, default=0)
     name = Column(Text, nullable=False, default='')
     subname = Column(Text, nullable=False, default='')
@@ -94,8 +95,7 @@ def flush_page_cache(self):
     evict_cache_keyword("{get_torrent_list.__module__}.{get_torrent_list.__name__}")
 
 @gg_cache(cache_type='timed_cache')
-def get_torrent_list(page: int = 0, keyword: str = None):
-    db: Session
+def _get_torrent_list(page, keyword):
     ret = []
     for db in get_sqldb():
         query = db.query(TorrentSQL).filter(TorrentSQL.status == TorrentStatus.normal)
@@ -104,7 +104,7 @@ def get_torrent_list(page: int = 0, keyword: str = None):
         query = query.order_by(TorrentSQL.popstatus.desc(), TorrentSQL.rank_by.desc())
         total = query.count()
         if page * config.site.preference.per_page > total:
-            return get_torrent_list(floor(total / config.site.preference.per_page), keyword)
+            return floor(total / config.site.preference.per_page), total # redirect to taht page number
         for t in query.offset(
             page * config.site.preference.per_page
         ).limit(
@@ -117,9 +117,19 @@ def get_torrent_list(page: int = 0, keyword: str = None):
                     'subname': t.subname,
                     'downloaded': t.finished,
                     'size': parse_size(t.size),
-                    **get_peer_count(t.info_hash)
+                    'info_hash': t.info_hash
                 }
             )
+    return ret, total
+
+async def get_torrent_list(page: int = 0, keyword: str = None):
+    db: Session
+    ret, total = _get_torrent_list(page, keyword)
+    if isinstance(ret, int):
+        return await get_torrent_list(ret, keyword)
+    for record in ret:
+        info_hash = record.pop('info_hash')
+        record.update(** await get_peer_count(info_hash))
     return { 'data': ret,
             'page': page,
             'total': ceil(total / config.site.preference.per_page)
