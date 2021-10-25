@@ -1,5 +1,6 @@
 
 from pydantic import BaseModel
+import pymongo
 from typing import Optional, Union, List
 from bson import ObjectId
 from datetime import datetime, timedelta
@@ -46,6 +47,9 @@ class PeerModel(BaseModel):
 
 class Peer:
     def __init__(self, event='', **kwargs):
+        self.find_one = self._coroutine(event, **kwargs)
+
+    async def _coroutine(self, event, **kwargs):
         self.request = kwargs
         self.time = datetime.now()
         self.event = event
@@ -72,13 +76,14 @@ class Peer:
             else:
                 # FIXME: Mingjun: I guess we should not create new peer for this event?
                 # Basically, this event is a periodically reporting labeled with str("")
-                self.created = True
-                self.peer = PeerModel(**kwargs)
+                peer = Peer._resume_peers_session(**kwargs)
+                self.objectId = peer['_id']
+                self.peer = PeerModel(**peer)
                 self.peer.started = self.time
                 self.incr = (
                     kwargs['uploaded'] - self.peer.uploaded,
                     kwargs['downloaded'] - self.peer.downloaded,
-                    timedelta(seconds=0)
+                    self.peer.to_go - self.peer.last_action
                 )
         print(self.incr)
         # if event != 'started':
@@ -109,17 +114,22 @@ class Peer:
             nosql_client.peers.insert_one(dict(self.peer))
             return self.incr
         else:
-            if nosql_client.peers.find_one_and_update(
-                {"_id": self.objectId},
-                {'$set': {
+            update_dict = {'$set': {
                     "prev_action": self.peer.last_action,
                     "last_action": self.time,
                     "to_go": self.time + next_allowance,
                     "downloaded": self.request["downloaded"],
                     "uploaded": self.request["uploaded"],
                     "seeder": seeder,
-                    "paused": self.event == "paused"
+                    "paused": self.event == "paused",
                 }}
+            if 'ipv4' in self.request:
+                update_dict['$set']['ipv4'] = self.request['ipv4']
+            if 'ipv6' in self.request:
+                update_dict['$set']['ipv6'] = self.request['ipv6']
+            if nosql_client.peers.find_one_and_update(
+                {"_id": self.objectId},
+                update_dict
             ) is None:
                 raise ErrorException('Peer Invalid.')
             return self.incr
@@ -145,7 +155,7 @@ class Peer:
             "peer_id": kwargs.get("peer_id"),
             "key": kwargs.get("key")
         }
-        for record in nosql_client.peers.find(query).sort({'to_go': -1}).limit(1):
+        for record in nosql_client.peers.find(query).sort('to_go', pymongo.DESCENDING).limit(1):
             return record
         raise ErrorException("Never seen you before")
 

@@ -75,14 +75,12 @@ async def announce(
             ** await peer_count       # redis cache
         }
         if event == 'stopped':
-            next_allowance = timedelta(seconds=0)
+            reannounce_deadline = timedelta(seconds=0)
         else:
-            next_allowance = timedelta(minutes=60)
-        incr_uploaded, incr_downloaded, time_delta = peer.commit(
-            next_allowance=next_allowance, seeder=seeder or (event == 'paused'))
+            reannounce_deadline = timedelta(seconds=rep_dict['interval'] + 10)
         if event != 'started':
             backgroundTasks.add_task(
-                accountingService, userid, torrent_id, incr_uploaded, incr_downloaded, time_delta, seeder)
+                accountingService, peer, reannounce_deadline)
         return BencResponse(rep_dict)
     except ErrorException as e:
         return ErrorResponse(e.__repr__(), 401)
