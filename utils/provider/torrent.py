@@ -2,6 +2,7 @@ import bencodepy
 from typing import Tuple, Union, BinaryIO, List
 from hashlib import sha1
 from .size_parser import parse_size
+from main import config
 
 class Torrent:
     def __init__(self, content: Union[bytes, BinaryIO]):
@@ -9,6 +10,7 @@ class Torrent:
             content = content.read()
         self.torrent = bencodepy.decode(content)
         self.torrent[b'info'][b'private'] = 1 # by default, we set it as private
+        self.torrent[b'info'][b'source'] = config.site.torrent_unique_key + self.torrent[b'info'][b'source']
 
     def set_announce(self, url: Union[str, List[str]]):
         self.torrent[b'announce-list'] = []
@@ -41,8 +43,14 @@ class Torrent:
                 ret.append(file[b'name'].decode('utf-8'))
             return ret
     
-    def get_info_hash(self) -> bytes:
-        return sha1(bencodepy.encode(self.torrent[b'info'])).digest()
+    def get_info_hash(self, for_duplicate_compare=False) -> bytes:
+        if not for_duplicate_compare:
+            return sha1(bencodepy.encode(self.torrent[b'info'])).digest()
+        else: # for duplicate comparison
+            tmp = self.torrent[b'info'].pop(b'source')
+            ret = sha1(bencodepy.encode(self.torrent[b'info'])).digest()
+            self.torrent[b'info'][b'source'] = tmp
+            return ret
 
 if __name__ == "__main__":
     import glob
