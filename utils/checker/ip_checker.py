@@ -11,13 +11,19 @@ from fastapi.logger import logger
 
 from main import gg
 
+import time
+
 @gg.middleware("http")
 async def mw_check_ip(request: Request, call_next):
     client_ip = IP(request.client.host)
     # print("client access with ip: %s" % client_ip)
     if await check_ip(client_ip):
         raise HTTPException(403, "Your are not allowed to access this server.")
+    if '/announce' in str(request.url):
+        start = time.time()
     response = await call_next(request)
+    if '/announce' in str(request.url):
+        print('Processing:' , time.time() - start)
     return response
 
 

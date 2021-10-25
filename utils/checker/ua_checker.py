@@ -17,7 +17,7 @@ def _check_db(ua: str):
             return client
     raise ErrorException("No valid torrent client detected")
 
-def check_ua_or_400(request: Request):
+async def check_ua_or_400(request: Request):
     """
         Check if a given ua is a browser or cheat.
 

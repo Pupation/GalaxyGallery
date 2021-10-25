@@ -1,5 +1,6 @@
 from fastapi import Header, Request, HTTPException, BackgroundTasks
 from datetime import timedelta
+import asyncio
 import re
 from urllib.parse import unquote_to_bytes
 
@@ -36,11 +37,10 @@ async def announce(
     try:
         coroutine_checkip = check_ip(ip)                # redis cache
         coroutine_checkpasskey = check_passkey(passkey) # redis cache
-        torrent_client = check_ua_or_400(request)       # python local cache
+        # torrent_client = check_ua_or_400(request)       # python local cache
         torrent_id = get_torrent_id(info_hash)          # redis cache
         check_port_or_400(port)
-        blocked_ip = await coroutine_checkip
-        userid = await coroutine_checkpasskey
+        blocked_ip, userid, torrent_client = await asyncio.gather(coroutine_checkip, coroutine_checkpasskey, check_ua_or_400(request))
         if blocked_ip:
             raise ErrorException('Blocked IP.', 400)
         if userid == -1:
@@ -69,13 +69,14 @@ async def announce(
                          requester_ip=ip,
                          compact=(compact == 1)
                          )
+        peers, peer_count = await asyncio.gather(peers(), peer_count)
         rep_dict = {
             "interval": 60,  # TODO: dynamic calculate interval by
             "min interval":  10,
             # "peers", "peers6"
-            ** await peers(),
+            ** peers,
             # "complete", "incomplete", "downloaders"
-            ** await peer_count       # redis cache
+            ** peer_count       # redis cache
         }
         if event == 'stopped':
             reannounce_deadline = timedelta(seconds=0)
