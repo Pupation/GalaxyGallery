@@ -1,13 +1,11 @@
-from fastapi import Depends
 from sqlalchemy.orm import Session
+from datetime import timedelta, datetime
 
-from asyncio import sleep
-from main import gg, config
-from datetime import timedelta
+from main import config
 from utils.connection.sql.db import get_sqldb
 from models.user.user import User
 from models.torrent.peer import Peer
-from models.torrent.user_peer_stat import UserPeerStat, UserSeedStatus
+from models.torrent.user_peer_stat import UserPeerStat, UserSeedStatus, get_last_action
 from models.torrent.torrent import TorrentSQL
 
 async def accountingService(peer: Peer, next_allowance: timedelta, left: bool):
@@ -18,6 +16,13 @@ async def accountingService(peer: Peer, next_allowance: timedelta, left: bool):
 
     for db in get_sqldb():
         user = db.query(User).get({'id': peer.peer.userid})
+        
+        last_action = get_last_action(peer.peer.torrent)
+
+        if last_action - datetime.now() > timedelta(days=config.site.preference.reseed_threshold):
+            # TODO: trigger reseed bonus
+            print("reseed bonus!")
+            pass
         try:   
             stat = db.query(UserPeerStat).filter_by(uid=peer.peer.userid, tid=peer.peer.torrent).one()
         except:

@@ -19,6 +19,7 @@ site:
     port: 587
   preference:
     per_page: 30
+    reseed_threshold: 30 # unit days
 
 client:
   baned_ports:
@@ -62,3 +63,6 @@ cache:
           ttl: 30
         get_torrent_info_hash: null
         get_torrent_id: null
+      user_peer_stat: 
+        get_last_action: 
+          ttl: 86400

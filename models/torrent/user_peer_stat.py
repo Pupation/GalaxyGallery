@@ -1,8 +1,12 @@
 from .. import Base
 from sqlalchemy import Integer, Column, ForeignKey, Enum, DateTime, BigInteger
 from sqlalchemy.sql import func
+from sqlalchemy.orm import Session
 from datetime import datetime
 import enum
+
+from utils.cache import gg_cache
+from utils.connection.sql.db import get_sqldb
 
 class UserSeedStatus(enum.Enum):
     DOWNLOADING = 0
@@ -25,3 +29,14 @@ class UserPeerStat(Base):
     measured_uploaded_speed = Column(Integer, default=0)
     measured_downloaded_speed = Column(Integer, default=0)
     last_action = Column(DateTime, onupdate=func.current_timestamp())
+
+@gg_cache(cache_type='timed_cache')
+def get_last_action(tid):
+    db: Session
+    for db in get_sqldb():
+        try:
+            return db.query(func.max(UserPeerStat.last_action).label('last_action')).filter_by(tid=tid, status=UserSeedStatus.SEEDING).one() - datetime.now()
+        except:
+            return datetime.now()
+        finally:
+            db.close()
