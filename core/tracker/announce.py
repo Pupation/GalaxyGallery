@@ -81,9 +81,8 @@ async def announce(
             reannounce_deadline = timedelta(seconds=0)
         else:
             reannounce_deadline = timedelta(seconds=rep_dict['interval'] + 300)
-        if event != 'started':
-            backgroundTasks.add_task(
-                accountingService, peer, reannounce_deadline, left)
+        backgroundTasks.add_task(
+            accountingService, peer, reannounce_deadline, left)
         return BencResponse(rep_dict)
     except ErrorException as e:
         return ErrorResponse(e.__repr__(), e.ret_code)
