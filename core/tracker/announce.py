@@ -42,9 +42,12 @@ async def announce(
         blocked_ip = await coroutine_checkip
         userid = await coroutine_checkpasskey
         if blocked_ip:
-            raise ErrorException('Blocked IP.')
-        if userid is None:
-            raise ErrorException('Passkey Invalid.')
+            raise ErrorException('Blocked IP.', 400)
+        if userid == -1:
+            raise ErrorException('Passkey Invalid.', 401)
+        elif userid == -2:
+            raise ErrorException('Permission Denied.', 403)
+            
         seeder = left == 0
         peer = Peer(info_hash=info_hash,                # MongoDB query
                     peer_id=peer_id,
@@ -77,13 +80,13 @@ async def announce(
         if event == 'stopped':
             reannounce_deadline = timedelta(seconds=0)
         else:
-            reannounce_deadline = timedelta(seconds=rep_dict['interval'] + 10)
+            reannounce_deadline = timedelta(seconds=rep_dict['interval'] + 300)
         if event != 'started':
             backgroundTasks.add_task(
-                accountingService, peer, reannounce_deadline)
+                accountingService, peer, reannounce_deadline, left)
         return BencResponse(rep_dict)
     except ErrorException as e:
-        return ErrorResponse(e.__repr__(), 401)
+        return ErrorResponse(e.__repr__(), e.ret_code)
     except HTTPException as e:
         if "blocked_ip" not in locals():
             blocked_ip = await coroutine_checkip

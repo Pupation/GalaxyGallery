@@ -159,7 +159,7 @@ class User(Base):
     def set_passkey(self, new=False):
         while True:
             new_passkey = md5((str(time.time()) + self.username).encode('utf-8')).hexdigest()
-            if get_userid_by_passkey(new_passkey) is None:
+            if get_userid_by_passkey(new_passkey) < 0:
                 break # the passkey is unique
         if not new:
             evict_cache_keyword([self.passkey, f"get_user_by_id*({self.id},):"])
@@ -206,9 +206,11 @@ def get_userid_by_passkey(passkey, bypass_cache: Any=None):
     db:Session = sqldb()
     ret = db.query(User).filter(User.passkey == passkey)
     try:
-        ret = ret.one().id
-        return ret
+        ret = ret.one()
+        if not ret.has_permission(Permission.SEED_LEECH):
+            return -2
+        return ret.id
     except:
-        return None
+        return -1
     finally:
         db.close()

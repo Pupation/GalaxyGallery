@@ -73,6 +73,8 @@ class Peer:
                     kwargs['downloaded'] - self.peer.downloaded,
                     self.time - self.peer.last_action
                 )
+                if event == 'paused':
+                    self.peer.paused = True
             else:
                 # FIXME: Mingjun: I guess we should not create new peer for this event?
                 # Basically, this event is a periodically reporting labeled with str("")
