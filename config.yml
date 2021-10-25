@@ -20,6 +20,8 @@ site:
   preference:
     per_page: 30
     reseed_threshold: 30 # unit days
+    word_filter:
+      ['fuck', 'fxxk']
 
 client:
   baned_ports:

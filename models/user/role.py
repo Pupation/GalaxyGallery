@@ -11,6 +11,8 @@ class Permission(Integer):
     BYPASS_VOTE_TORRENT = 0x8
     DOWNLOAD_TORRENT = 0x10
     SEED_LEECH = 0x20
+    CHAT = 0x40
+    PUBLIC_CHAT = 0x80
 
     NO_LEECH = 0x1000000
     NO_SEED  = 0x2000000
