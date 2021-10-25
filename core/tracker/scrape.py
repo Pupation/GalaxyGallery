@@ -13,8 +13,9 @@ async def scrape(
     passkey: str
 ):
     check_passkey_coroutine = check_passkey(passkey)
+    get_peer_count_coroutine = get_peer_count(info_hash)
     rep_dict = {
-        "files": get_peer_count(info_hash)
+        "files": await get_peer_count_coroutine
     }
     if (await check_passkey_coroutine) is not None:
         return BencResponse(rep_dict)
