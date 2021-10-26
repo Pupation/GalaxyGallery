@@ -15,3 +15,9 @@ def create_all():
         db.add(Role(role_name='{customize}', admin=False, permissions=0))
         db.commit()
         db.close()
+
+
+from pydantic import BaseModel
+
+class GeneralResponse(BaseModel):
+    ok: int = 1

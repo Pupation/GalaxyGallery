@@ -18,6 +18,7 @@ from core import *
 gg.include_router(user_router)
 gg.include_router(torrent_router)
 gg.include_router(chatbox_router)
+gg.include_router(category_router)
 
 gg.add_middleware(
     CORSMiddleware,

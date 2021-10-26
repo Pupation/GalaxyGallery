@@ -36,3 +36,11 @@ async def current_active_user(user: User = Depends(current_user)):
     if user.status != UserStatus.confirmed:
         raise HTTPException(402, 'User is not confirmed')
     return user
+
+class user_with_permission:
+    def __init__(self, permission):
+        self.to_check = permission
+    def __call__(self, user: User = Depends(current_active_user)):
+        if not user.has_permission(self.to_check):
+            raise HTTPException(403, "You don't have permission to do this")
+        return user

@@ -13,6 +13,7 @@ class Permission(Integer):
     SEED_LEECH = 0x20
     CHAT = 0x40
     PUBLIC_CHAT = 0x80
+    MANAGE_TORRENT = 0x100
 
     NO_LEECH = 0x1000000
     NO_SEED  = 0x2000000
