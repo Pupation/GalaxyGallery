@@ -96,7 +96,7 @@ html = html = """
             };
             function sendMessage(event) {
                 var input = document.getElementById("messageText")
-                ws.send(JSON.stringify({ sender_uid: 1, receiver_uid: -1, content: input.text, send_time: "2012-04-23T18:25:43.511Z", quote: 0 }))
+                ws.send(JSON.stringify({ sender_uid: 1, receiver_uid: -1, content: input.value, send_time: "2012-04-23T18:25:43.511Z", quote: 0 }))
                 input.value = ''
                 event.preventDefault()
             }
@@ -123,5 +123,5 @@ async def chatebox_websocket(websocket: WebSocket, token: str = ''):
         except:
             websocket.send_json({'error': 422, 'detail': 'Missing field.'})
         client = redis.StrictRedis(connection_pool=redis_connection_pool)
-        client.publish(NAME_MESSAGE_QUEUE, json.dumps(data))
+        client.publish(NAME_MESSAGE_QUEUE, message.message.json())
         await websocket.send_text(f"Message was {data}")

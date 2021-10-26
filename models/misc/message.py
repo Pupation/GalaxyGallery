@@ -6,7 +6,7 @@ from datetime import datetime
 import re
 
 from main import config
-MASKED_WORD = [re.compile(word) for word in config.site.preference.word_filter]
+MASKED_WORD = [word for word in config.site.preference.word_filter]
 
 class Message(BaseModel):
     _id: ObjectId
@@ -19,7 +19,7 @@ class Message(BaseModel):
     @validator('content')
     def validate_message(cls, message):
         for mask in MASKED_WORD:
-            message = re.sub(mask, message, '*')
+            message = re.sub(mask, '*',message)
         return message
 
 class MessageHandler: 
