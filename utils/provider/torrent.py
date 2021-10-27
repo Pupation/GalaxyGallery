@@ -11,7 +11,7 @@ class Torrent:
         self.torrent = bencodepy.decode(content)
         self.torrent[b'info'][b'private'] = 1 # by default, we set it as private
         if b'source' in self.torrent[b'info']:
-            self.torrent[b'info'][b'source'] = config.site.torrent_unique_key + self.torrent[b'info'][b'source']
+            self.torrent[b'info'][b'source'] = config.site.torrent_unique_key.encode('utf-8') + self.torrent[b'info'][b'source']
         else:
             self.torrent[b'info'][b'source'] = config.site.torrent_unique_key
 
