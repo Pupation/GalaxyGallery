@@ -49,6 +49,11 @@ class UserPeerStatResponse(BaseModel):
     data: List[UserPeerStatRecord]
     total: int
 
+class UserPeerStatCountResponse(BaseModel):
+    seeding: int = 0
+    downloading: int = 0
+    partial_seed: int = 0
+
 @gg_cache(cache_type='timed_cache')
 def get_last_action(tid):
     db: Session
@@ -59,3 +64,12 @@ def get_last_action(tid):
             return datetime.now()
         finally:
             db.close()
+
+@gg_cache(cache_type='timed_cache')
+def get_counget_peer_stat_count_for(torrent_id: int):
+    for db in get_sqldb():
+        result = db.query(UserPeerStat.status, func.count(UserPeerStat.status)).filter(UserPeerStat.tid == torrent_id).group_by(UserPeerStat.status).all()
+    ret = dict()
+    for r,v in result:
+        ret[r.name.lower()] = v
+    return ret

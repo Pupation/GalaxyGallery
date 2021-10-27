@@ -68,3 +68,5 @@ cache:
       user_peer_stat: 
         get_last_action: 
           ttl: 86400
+        get_counget_peer_stat_count_for:
+          ttl: 60
