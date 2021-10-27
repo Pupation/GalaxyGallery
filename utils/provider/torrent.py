@@ -10,7 +10,10 @@ class Torrent:
             content = content.read()
         self.torrent = bencodepy.decode(content)
         self.torrent[b'info'][b'private'] = 1 # by default, we set it as private
-        self.torrent[b'info'][b'source'] = config.site.torrent_unique_key + self.torrent[b'info'][b'source']
+        if b'source' in self.torrent[b'info']:
+            self.torrent[b'info'][b'source'] = config.site.torrent_unique_key + self.torrent[b'info'][b'source']
+        else:
+            self.torrent[b'info'][b'source'] = config.site.torrent_unique_key
 
     def set_announce(self, url: Union[str, List[str]]):
         self.torrent[b'announce-list'] = []
