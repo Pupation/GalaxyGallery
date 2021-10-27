@@ -47,6 +47,7 @@ class UserPeerStatRecord(BaseModel):
 
 class UserPeerStatResponse(BaseModel):
     data: List[UserPeerStatRecord]
+    total: int
 
 @gg_cache(cache_type='timed_cache')
 def get_last_action(tid):
