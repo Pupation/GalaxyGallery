@@ -4,6 +4,8 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import Session
 from datetime import datetime
 import enum
+from pydantic import BaseModel
+from typing import List
 
 from utils.cache import gg_cache
 from utils.connection.sql.db import get_sqldb
@@ -29,6 +31,22 @@ class UserPeerStat(Base):
     measured_uploaded_speed = Column(Integer, default=0)
     measured_downloaded_speed = Column(Integer, default=0)
     last_action = Column(DateTime, onupdate=func.current_timestamp())
+
+class UserPeerStatRecord(BaseModel):
+    username: str
+    status: str
+    leechtime: int
+    seedtime: int
+    uploaded: int
+    downloaded: int
+    last_action: datetime
+    started: datetime
+    measured_downloaded_speed: int
+    measured_uploaded_speed: int
+    left: int
+
+class UserPeerStatResponse(BaseModel):
+    data: List[UserPeerStatRecord]
 
 @gg_cache(cache_type='timed_cache')
 def get_last_action(tid):
