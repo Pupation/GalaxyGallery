@@ -7,13 +7,13 @@ from . import router
 
 from models.user.user import User, get_user_by_id
 from models.user.auth import user_with_permission, Permission
-from models.torrent.user_peer_stat import UserPeerStat, UserPeerStatRecord, UserPeerStatResponse, UserPeerStatCountResponse, UserSeedStatus, get_counget_peer_stat_count_for 
+from models.torrent.user_peer_stat import UserPeerStat, UserPeerStatRecord, UserPeerStatResponse, UserPeerStatCountResponse, UserSeedStatus, get_count_peer_stat_count_by_tid 
 
 from utils.connection.sql.db import get_sqldb
 
 @router.get('/peer/count/{torrent_id}', response_model = UserPeerStatCountResponse)
 async def get_peer_stat_count(torrent_id: int, _: User = Depends(user_with_permission(Permission.DOWNLOAD_TORRENT))):
-    return get_counget_peer_stat_count_for(torrent_id)
+    return get_count_peer_stat_count_by_tid(torrent_id)
 
 
 

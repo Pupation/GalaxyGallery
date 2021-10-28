@@ -2,7 +2,7 @@ from .. import Base
 from sqlalchemy import Integer, Column, ForeignKey, Enum, DateTime, BigInteger
 from sqlalchemy.sql import func
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 import enum
 from pydantic import BaseModel
 from typing import List
@@ -66,9 +66,26 @@ def get_last_action(tid):
             db.close()
 
 @gg_cache(cache_type='timed_cache')
-def get_counget_peer_stat_count_for(torrent_id: int):
+def get_count_peer_stat_count_by_tid(torrent_id: int):
     for db in get_sqldb():
-        result = db.query(UserPeerStat.status, func.count(UserPeerStat.status)).filter(UserPeerStat.tid == torrent_id).group_by(UserPeerStat.status).all()
+        result = db.query(UserPeerStat.status, func.count(UserPeerStat.status)).filter(
+            (UserPeerStat.tid == torrent_id) &
+            (UserPeerStat.last_action > datetime.utcnow() - timedelta(minutes=30))
+            ).group_by(UserPeerStat.status).all()
+    ret = dict()
+    for r,v in result:
+        ret[r.name.lower()] = v
+    return ret
+
+@gg_cache(cache_type='timed_cache')
+def get_count_peer_stat_count_by_uid(uid: int):
+    for db in get_sqldb():
+        query = db.query(UserPeerStat.status, func.count(UserPeerStat.status)).filter(
+            (UserPeerStat.uid == uid) &
+            (UserPeerStat.last_action > datetime.now() - timedelta(minutes=30))
+            ).group_by(UserPeerStat.status)
+        print(str(query))
+        result = query.all()
     ret = dict()
     for r,v in result:
         ret[r.name.lower()] = v

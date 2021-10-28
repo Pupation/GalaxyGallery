@@ -21,7 +21,8 @@ from typing import Optional
 
 from utils.connection.sql.db import get_sqldb
 from models.user.user import *
-from models.user.auth import create_access_token, current_active_user
+from models.user.auth import create_access_token, current_active_user, user_with_permission
+from models.torrent.user_peer_stat import UserPeerStatCountResponse, get_count_peer_stat_count_by_uid
 
 from .register import ErrorResponseForm
 
@@ -112,4 +113,9 @@ def get_profile(userid:Optional[int] = None, user:User = Depends(current_active_
         bypass_privacy = False
 
     ret = target_user.get_profile(bypass_privacy)
+    return ret
+
+@router.get('/peer/count', response_model = UserPeerStatCountResponse)
+async def get_peer_stat_count(user: User = Depends(user_with_permission(Permission.DOWNLOAD_TORRENT))):
+    ret = get_count_peer_stat_count_by_uid(user.id)
     return ret
