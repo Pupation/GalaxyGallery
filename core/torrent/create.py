@@ -6,7 +6,7 @@ import redis
 import uuid
 from sqlalchemy.orm import Session
 
-from models.torrent.torrent import TorrentSQL, CreateTorrentForm, TorrentStatus, TorrentNoSQL
+from models.torrent.torrent import TorrentSQL, CreateTorrentForm, TorrentStatus, TorrentNoSQL, flush_page_cache
 from models.user.user import User, Permission
 from models.user.auth import current_active_user
 from utils.cache import redis_connection_pool
@@ -42,6 +42,7 @@ async def create_torrent(request: Request,form: CreateTorrentForm, user: User = 
     cache.delete(form.file_id)
     if db.query(TorrentSQL).filter(TorrentSQL.info_hash == info_hash).count() > 0:
         raise HTTPException(409, 'Torrent already exists')
+    form.name = form.name.replace('.torrent', '')
     torrent_sql = TorrentSQL(
         status=TorrentStatus.normal if user.has_permission(
             Permission.BYPASS_VOTE_TORRENT) else TorrentStatus.pending,
@@ -53,6 +54,7 @@ async def create_torrent(request: Request,form: CreateTorrentForm, user: User = 
         name = form.name,
         subname = form.subname,
         category = form.category,
+        rank_by = datetime.now()
     )
     torrent_nosql = TorrentNoSQL(
         desc = form.desc,
@@ -67,6 +69,7 @@ async def create_torrent(request: Request,form: CreateTorrentForm, user: User = 
     db.add(torrent_sql)
     db.commit()
     db.refresh(torrent_sql)
+    flush_page_cache()
     return {'ok': 1, 'id': torrent_sql.id}
 
 class UploadTorrentResponse(BaseModel):

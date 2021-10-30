@@ -91,8 +91,8 @@ class CreateTorrentForm(BaseModel):
     imdb_link: Optional[str]
     nfo_id: str
 
-def flush_page_cache(self):
-    evict_cache_keyword("{get_torrent_list.__module__}.{get_torrent_list.__name__}")
+def flush_page_cache():
+    evict_cache_keyword("{_get_torrent_list.__module__}.{_get_torrent_list.__name__}")
 
 @gg_cache(cache_type='timed_cache')
 def _get_torrent_list(page, keyword):
@@ -100,7 +100,7 @@ def _get_torrent_list(page, keyword):
     for db in get_sqldb():
         query = db.query(TorrentSQL).filter(TorrentSQL.status == TorrentStatus.normal)
         if keyword: 
-            query = query.filter_by(TorrentSQL.name.like(f"%{keyword}%"))
+            query = query.filter(func.concat(TorrentSQL.name, TorrentSQL.subname).like(f"%{keyword}%"))
         query = query.order_by(TorrentSQL.popstatus.desc(), TorrentSQL.rank_by.desc())
         total = query.count()
         if page * config.site.preference.per_page > total:
@@ -117,7 +117,8 @@ def _get_torrent_list(page, keyword):
                     'subname': t.subname,
                     'downloaded': t.finished,
                     'size': parse_size(t.size),
-                    'info_hash': t.info_hash
+                    'info_hash': t.info_hash,
+                    'rank_by': t.rank_by
                 }
             )
     return ret, total

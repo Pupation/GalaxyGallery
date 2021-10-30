@@ -8,7 +8,7 @@ site:
   name: "Galaxy Gallery Private Tracker"
   short: "[GGPT]"
   torrent_unique_key: "[GGPT]"
-  domain: ['http://localhost:8080', 'https://pt.galaxy.gallery', 'https://6kj6r17qk.csb.app/'] # for CORS checking
+  domain: ['http://localhost:8080', 'https://pt.galaxy.gallery', 'https://6kj6r17qk.csb.app/', 'http://localhost:52652'] # for CORS checking
   SECRET_KEY: c3ff4f4c36ab0bcd483e8bd76fbc5d43a8a76b71a582db1f96561e084be437ae
   ALGORITHM: HS256
   default:
@@ -68,5 +68,7 @@ cache:
       user_peer_stat: 
         get_last_action: 
           ttl: 86400
-        get_counget_peer_stat_count_for:
+        get_count_peer_stat_count_by_tid:
+          ttl: 60
+        get_count_peer_stat_count_by_uid:
           ttl: 60

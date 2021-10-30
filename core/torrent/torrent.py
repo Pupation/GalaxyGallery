@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from models.torrent.torrent import TorrentSQL, CreateTorrentForm, TorrentStatus, TorrentNoSQL
 from models.user.user import User, Permission
 from models.user.auth import current_active_user
-from utils.cache import redis_connection_pool, gg_cache
+from utils.cache import redis_connection_pool
 from utils.provider.torrent import Torrent
 from utils.connection.sql.db import get_sqldb
 from utils.connection.nosql.db import client as nosql_db
@@ -31,6 +31,7 @@ class TorrentListReturn(BaseModel):
         complete: int
         incomplete: int
         size: tuple
+        rank_by: datetime
     data: List[TorrentBreifResponse]
     page: int
     total: int
@@ -42,8 +43,7 @@ async def torrent_list(request: Request,
                        advanced: bool = False,
                        _: User = Depends(current_active_user)
                        ):
-    ret = await get_torrent_list(page)
-    print(ret)
+    ret = await get_torrent_list(page, keyword)
     return ret
 
 class TorrentDetailResponse(BaseModel):

@@ -76,5 +76,6 @@ def evict_cache_keyword(keyword: Union[str, List[str]]):
         keyword = [keyword]
     for key in keyword:
         to_delete += client.keys(f"*{key}*")
-    client.delete(*to_delete)
+    if len(to_delete)> 0:
+        client.delete(*to_delete)
 
