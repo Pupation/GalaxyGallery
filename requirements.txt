@@ -1,5 +1,7 @@
+aioredis==2.0.0
 anyio==3.3.4
 asgiref==3.4.1
+async-timeout==3.0.1
 autopep8==1.5.7
 bencodepy==0.9.5
 cffi==1.15.0
