@@ -40,7 +40,7 @@ async def announce(
         # torrent_client = check_ua_or_400(request)       # python local cache
         torrent_id = get_torrent_id(info_hash)          # redis cache
         check_port_or_400(port)
-        blocked_ip, userid, torrent_client = await asyncio.gather(coroutine_checkip, coroutine_checkpasskey, check_ua_or_400(request))
+        blocked_ip, userid, torrent_client, torrent_id = await asyncio.gather(coroutine_checkip, coroutine_checkpasskey, check_ua_or_400(request), torrent_id)
         if blocked_ip:
             raise ErrorException('Blocked IP.', 400)
         if userid == -1:
@@ -82,8 +82,9 @@ async def announce(
             reannounce_deadline = timedelta(seconds=0)
         else:
             reannounce_deadline = timedelta(seconds=rep_dict['interval'] + 300)
-        backgroundTasks.add_task(
-            accountingService, peer, reannounce_deadline, left)
+        # backgroundTasks.add_task(
+            # accountingService, peer, reannounce_deadline, left)
+        await accountingService(peer, reannounce_deadline, left)
         return BencResponse(rep_dict)
     except ErrorException as e:
         return ErrorResponse(e.__repr__(), e.ret_code)

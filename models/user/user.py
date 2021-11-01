@@ -219,4 +219,4 @@ async def get_userid_by_passkey(passkey, bypass_cache: Any=None):
     except:
         return -1
     finally:
-        db.close()
+        await db.close()

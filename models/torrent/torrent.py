@@ -2,7 +2,7 @@ import enum
 
 from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String, Enum, DateTime, BigInteger, Boolean, SmallInteger, Numeric, BINARY, Text
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 from sqlalchemy.future import select
 from datetime import datetime
@@ -139,7 +139,7 @@ async def get_torrent_list(page: int = 0, keyword: str = None):
 
 @gg_cache
 async def get_torrent_info_hash(torrent_id):
-    db: Session
+    db: AsyncSession
     async for db in get_sqldb():
         try:
             sql = select(TorrentSQL).where(TorrentSQL.id == torrent_id)
@@ -150,11 +150,13 @@ async def get_torrent_info_hash(torrent_id):
             raise HTTPException(404, 'Torrent does not exsit')
 
 @gg_cache
-def get_torrent_id(torrent_info_hash):
-    db: Session
-    for db in get_sqldb():
+async def get_torrent_id(torrent_info_hash):
+    db: AsyncSession
+    async for db in get_sqldb():
         try:
-            record = db.query(TorrentSQL).filter(TorrentSQL.info_hash == torrent_info_hash).one()
+            sql = select(TorrentSQL).where(TorrentSQL.info_hash == torrent_info_hash)
+            record = await db.execute(sql)
+            record, = record.first()
             return record.id
         except:
             raise HTTPException(404, 'Torrent does not exsit')

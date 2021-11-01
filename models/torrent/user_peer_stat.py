@@ -1,7 +1,8 @@
 from .. import Base
 from sqlalchemy import Integer, Column, ForeignKey, Enum, DateTime, BigInteger
 from sqlalchemy.sql import func
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from datetime import datetime, timedelta
 import enum
 from pydantic import BaseModel
@@ -55,15 +56,18 @@ class UserPeerStatCountResponse(BaseModel):
     partial_seed: int = 0
 
 @gg_cache(cache_type='timed_cache')
-def get_last_action(tid):
-    db: Session
-    for db in get_sqldb():
+async def get_last_action(tid):
+    db: AsyncSession
+    async for db in get_sqldb():
         try:
-            return db.query(func.max(UserPeerStat.last_action).label('last_action')).filter_by(tid=tid, status=UserSeedStatus.SEEDING).one() - datetime.now()
+            sql = select(func.max(UserPeerStat.last_action).label('last_action')).where(UserPeerStat.tid==tid, UserPeerStat.status==UserSeedStatus.SEEDING)
+            result, = (await db.execute(sql)).first()
+            print(result)
+            return result
         except:
             return datetime.now()
         finally:
-            db.close()
+            await db.close()
 
 @gg_cache(cache_type='timed_cache')
 def get_count_peer_stat_count_by_tid(torrent_id: int):

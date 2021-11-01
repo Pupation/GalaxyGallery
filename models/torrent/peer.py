@@ -4,6 +4,7 @@ import pymongo
 from typing import Optional, Union, List
 from bson import ObjectId
 from datetime import datetime, timedelta
+from asyncio import Future, create_task
 
 from struct import pack
 from socket import inet_pton, AF_INET, AF_INET6
@@ -47,7 +48,7 @@ class PeerModel(BaseModel):
 
 class Peer:
     def __init__(self, event='', **kwargs):
-        self.find_one = self._coroutine(event, **kwargs)
+        self.find_one = create_task(self._coroutine(event, **kwargs))
 
     async def _coroutine(self, event, **kwargs):
         self.request = kwargs
@@ -64,7 +65,7 @@ class Peer:
                 timedelta(seconds=0)
             )
         else:  # not a new peer
-            self.peer = Peer._get_active_record(**kwargs)
+            self.peer = await Peer._get_active_record(**kwargs)
             if self.peer is not None:
                 self.objectId = self.peer['_id']
                 self.peer = PeerModel(**self.peer)
@@ -78,16 +79,19 @@ class Peer:
             else:
                 # FIXME: Mingjun: I guess we should not create new peer for this event?
                 # Basically, this event is a periodically reporting labeled with str("")
-                peer = Peer._resume_peers_session(**kwargs)
-                self.objectId = peer['_id']
-                self.peer = PeerModel(**peer)
-                self.peer.started = self.time
-                self.incr = (
-                    kwargs['uploaded'] - self.peer.uploaded,
-                    kwargs['downloaded'] - self.peer.downloaded,
-                    self.peer.to_go - self.peer.last_action
-                )
-        print(self.incr)
+                try:
+                    peer = (await Peer._resume_peers_session(**kwargs))[0]
+                    self.objectId = peer['_id']
+                    self.peer = PeerModel(**peer)
+                    self.peer.started = self.time
+                    self.incr = (
+                        kwargs['uploaded'] - self.peer.uploaded,
+                        kwargs['downloaded'] - self.peer.downloaded,
+                        self.peer.to_go - self.peer.last_action
+                    )
+                    print(self.peer)
+                except:
+                    raise Exception('Never seen you before')
         # if event != 'started':
         #     self.created = False
         #     else:
@@ -107,13 +111,13 @@ class Peer:
                 packed = inet_pton(AF_INET6, ip_address)
             return packed + pack("H", self.peer.port)
 
-    def commit(self, next_allowance: timedelta = timedelta(minutes=30), seeder=False):
+    async def commit(self, next_allowance: timedelta = timedelta(minutes=30), seeder=False):
         if self.created:
             self.peer.prev_action = self.peer.last_action
             self.peer.last_action = datetime.now()
             self.peer.to_go = self.peer.last_action + next_allowance
             self.peer.seeder = seeder
-            nosql_client.peers.insert_one(dict(self.peer))
+            await nosql_client.peers.insert_one(dict(self.peer))
             return self.incr
         else:
             update_dict = {'$set': {
@@ -129,15 +133,21 @@ class Peer:
                 update_dict['$set']['ipv4'] = self.request['ipv4']
             if 'ipv6' in self.request:
                 update_dict['$set']['ipv6'] = self.request['ipv6']
-            if nosql_client.peers.find_one_and_update(
+            # print({"_id": self.objectId}, update_dict)
+            # await will block forever, but the transaction has been completed by manually checking mongodb
+            # I'm not sure if it's possible to have memory leakage here
+
+            update_one = await nosql_client.peers.update_one( 
+            # update_one = nosql_client.peers.update_one( 
                 {"_id": self.objectId},
                 update_dict
-            ) is None:
+            )
+            if update_one is None:
                 raise ErrorException('Peer Invalid.')
-            return self.incr
+            return self.incr, update_one
 
     @staticmethod
-    def _get_active_record(**kwargs) -> dict:
+    def _get_active_record(**kwargs) -> "Future[dict]":
         query = {
             "info_hash": kwargs.get("info_hash"),
             "to_go": {"$gt": datetime.now()},
@@ -157,8 +167,7 @@ class Peer:
             "peer_id": kwargs.get("peer_id"),
             "key": kwargs.get("key")
         }
-        for record in nosql_client.peers.find(query).sort('to_go', pymongo.DESCENDING).limit(1):
-            return record
+        return nosql_client.peers.find(query).sort('to_go', pymongo.DESCENDING).limit(1).to_list(1)
         raise ErrorException("Never seen you before")
 
 
@@ -193,8 +202,8 @@ class PeerList:
         self.seeder = seeder
     
     @staticmethod
-    async def async_query(query_params, result_projection):
-        return nosql_client.peers.find(query_params, result_projection)
+    def async_query(query_params, result_projection):
+        return nosql_client.peers.find(query_params, result_projection).to_list(None)
 
     async def __call__(self, num_want=40):  # TODO: num_want
         ret_v4 = []
@@ -228,7 +237,7 @@ class PeerList:
 
 
 @gg_cache(cache_type='timed_cache') # cache query result
-def _get_peer_count(info_hash):
+async def _get_peer_count(info_hash):
     query_params = {
         "info_hash": info_hash,
         "to_go": {"$gt": datetime.now()}
@@ -246,14 +255,14 @@ def _get_peer_count(info_hash):
         }
         ])
     ret = []
-    for record in cursor:
+    for record in await cursor.to_list(None):
         ret.append(record)
     return ret
         
 
 async def get_peer_count(info_hash: bytes): # async for non blocking
 
-    counts = _get_peer_count(info_hash)
+    counts = await _get_peer_count(info_hash)
     ret = {
         'incomplete': 0,
         'complete': 0,
