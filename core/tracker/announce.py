@@ -84,7 +84,12 @@ async def announce(
             reannounce_deadline = timedelta(seconds=rep_dict['interval'] + 300)
         # backgroundTasks.add_task(
             # accountingService, peer, reannounce_deadline, left)
-        await accountingService(peer, reannounce_deadline, left)
+        # await accountingService(peer, reannounce_deadline, left)
+        task = asyncio.create_task(accountingService(peer, reannounce_deadline, left)) # potential memory leak?
+        # backgroundTasks.add_task(
+        #     cleanup_future, task
+        # )
+
         return BencResponse(rep_dict)
     except ErrorException as e:
         return ErrorResponse(e.__repr__(), e.ret_code)
@@ -100,3 +105,11 @@ async def announce(
         return ErrorResponse('Torrent Not found', 404)
     # except:
     #     return ErrorResponse('Bad request',400)
+
+# async def cleanup_future(task):
+#     print('start waiting')
+#     # while not task.done():
+#     #     print('task is still running')
+#     #     asyncio.sleep(0.1)
+#     # await task
+#     print('task finished')
