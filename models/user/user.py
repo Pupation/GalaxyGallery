@@ -7,7 +7,9 @@ from typing import Union, List
 
 from sqlalchemy import Column, Integer, String, Enum, DateTime, BigInteger, Boolean, SmallInteger, Numeric, BINARY, ForeignKey
 from sqlalchemy.orm import Session, relationship
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
+from sqlalchemy.future import select
 from datetime import datetime
 
 from .. import Base
@@ -193,20 +195,24 @@ class User(Base):
 
 
 @gg_cache(cache_type='timed_cache') # TODO: need sophisticated cache to improve performance
-def get_user_by_id(uid, bypass_cache: Any=None): 
+async def get_user_by_id(uid, bypass_cache: Any=None): 
     del bypass_cache
-    db:Session = sqldb()
-    ret = db.query(User).filter(User.id == uid).one()
-    db.close()
+    db:AsyncSession = sqldb()
+    sql = select(User).where(User.id == uid).limit(1)
+    result = await db.execute(sql)
+    ret, = result.first()
+    # ret = await db.query(User).filter(User.id == uid).one()
+    await db.close()
     return ret
 
 @gg_cache(cache_type='timed_cache')
-def get_userid_by_passkey(passkey, bypass_cache: Any=None):
+async def get_userid_by_passkey(passkey, bypass_cache: Any=None):
     del bypass_cache
-    db:Session = sqldb()
-    ret = db.query(User).filter(User.passkey == passkey)
+    db:AsyncSession = sqldb()
+    sql = select(User).where(User.passkey == passkey).limit(1)
+    result = await db.execute(sql)
     try:
-        ret = ret.one()
+        ret, = result.first()
         if not ret.has_permission(Permission.SEED_LEECH):
             return -2
         return ret.id

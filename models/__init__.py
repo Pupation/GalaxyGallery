@@ -1,6 +1,7 @@
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Table
 
-Base = declarative_base()
+Base:Table = declarative_base()
 
 def create_all():
     from utils.connection.sql.db import engine

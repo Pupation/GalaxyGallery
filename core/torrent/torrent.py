@@ -54,7 +54,7 @@ class TorrentDetailResponse(BaseModel):
 
 @router.get('/torrent_detail/{torrent_id}', response_model=TorrentDetailResponse)
 async def torrent_detail(request: Request, torrent_id: int, _: User = Depends(current_active_user)):
-    ret = get_torrent_detail(torrent_id, 0)
+    ret = await get_torrent_detail(torrent_id, 0)
     ret['info_hash'] = ret['info_hash'].hex()
     return ret
 

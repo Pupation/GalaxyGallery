@@ -7,7 +7,7 @@ from models.user.user import User
 from models.user.auth import current_active_user, user_with_permission
 from models.user.role import Permission
 from models.misc.category import CategoryResponse, Category, UpdateCategoryForm
-from utils.connection.nosql.db import client as nosql_client
+from utils.connection.nosql.db import client as nosql_client, _client
 
 
 CATEGORIES = []
@@ -20,7 +20,7 @@ def update_categories():
             if c.cid == cid:
                 return c
     print("Updating category cache")
-    for category in nosql_client.categories.find({}).sort('cid', 1):
+    for category in _client.categories.find({}).sort('cid', 1):
         data = dict(category)
         if 'parent' in data and data['parent'] is not None and data['parent'] != -1:
             found = False

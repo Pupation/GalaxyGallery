@@ -1,5 +1,5 @@
 
-import redis
+import aioredis as redis
 
 from main import config
 from functools import lru_cache
@@ -12,7 +12,7 @@ caches = []
 redis_connection_pool = redis.ConnectionPool(**config.cache.redis)
 client_lru = redis.StrictRedis(connection_pool=redis_connection_pool)
 client_timed = redis.StrictRedis(connection_pool=redis_connection_pool)
-from redis_lru import RedisLRU
+from .aioredis import AioRedisLRU as RedisLRU
 # redis_lru_cache = RedisLRU(client_lru, key_prefix='lru_cache')
 # redis_timed_lru_cache = RedisLRU(client_timed, key_prefix='timed_lru_cache')
 

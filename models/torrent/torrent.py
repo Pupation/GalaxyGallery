@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String, Enum, DateTime, BigInteger, Boolean, SmallInteger, Numeric, BINARY, Text
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
+from sqlalchemy.future import select
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from bson import ObjectId
@@ -137,11 +138,13 @@ async def get_torrent_list(page: int = 0, keyword: str = None):
      }
 
 @gg_cache
-def get_torrent_info_hash(torrent_id):
+async def get_torrent_info_hash(torrent_id):
     db: Session
-    for db in get_sqldb():
+    async for db in get_sqldb():
         try:
-            record = db.query(TorrentSQL).filter( TorrentSQL.id == torrent_id ).one()
+            sql = select(TorrentSQL).where(TorrentSQL.id == torrent_id)
+            record = await db.execute(sql)
+            record, = record.first()
             return record.info_hash
         except:
             raise HTTPException(404, 'Torrent does not exsit')
@@ -157,8 +160,8 @@ def get_torrent_id(torrent_info_hash):
             raise HTTPException(404, 'Torrent does not exsit')
 
 
-def get_torrent_detail(torrent_id: int, torrent: int):
-    info_hash = get_torrent_info_hash(torrent_id)
+async def get_torrent_detail(torrent_id: int, torrent: int):
+    info_hash = await get_torrent_info_hash(torrent_id)
     projection = {'_id': 0, 
                     'torrent': torrent,
                 'info_hash': 1, 'desc': 1, 'detail': 1, 'filename': 1}
@@ -170,7 +173,8 @@ def get_torrent_detail(torrent_id: int, torrent: int):
         {'info_hash': info_hash},
         projection
     )
-    for r in ret:
+    print(ret)
+    for r in await ret.to_list(1):
         record = dict(TorrentNoSQL(**r))
         return record
         
