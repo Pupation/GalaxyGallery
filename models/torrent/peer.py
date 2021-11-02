@@ -48,11 +48,11 @@ class PeerModel(BaseModel):
 
 class Peer:
     def __init__(self, event='', **kwargs):
+        self.time = datetime.now()
         self.find_one = create_task(self._coroutine(event, **kwargs))
 
     async def _coroutine(self, event, **kwargs):
         self.request = kwargs
-        self.time = datetime.now()
         self.event = event
         self.created = False
         if event == 'started':
@@ -65,7 +65,7 @@ class Peer:
                 timedelta(seconds=0)
             )
         else:  # not a new peer
-            self.peer = await Peer._get_active_record(**kwargs)
+            self.peer = await self._get_active_record(**kwargs)
             if self.peer is not None:
                 self.objectId = self.peer['_id']
                 self.peer = PeerModel(**self.peer)
@@ -80,7 +80,7 @@ class Peer:
                 # FIXME: Mingjun: I guess we should not create new peer for this event?
                 # Basically, this event is a periodically reporting labeled with str("")
                 try:
-                    peer = (await Peer._resume_peers_session(**kwargs))[0]
+                    peer = await self._resume_peers_session(**kwargs)
                     self.objectId = peer['_id']
                     self.peer = PeerModel(**peer)
                     self.peer.started = self.time
@@ -122,7 +122,6 @@ class Peer:
         else:
             update_dict = {'$set': {
                     "prev_action": self.peer.last_action,
-                    "last_action": self.time,
                     "to_go": self.time + next_allowance,
                     "downloaded": self.request["downloaded"],
                     "uploaded": self.request["uploaded"],
@@ -146,8 +145,7 @@ class Peer:
                 raise ErrorException('Peer Invalid.')
             return self.incr, update_one
 
-    @staticmethod
-    def _get_active_record(**kwargs) -> "Future[dict]":
+    def _get_active_record(self, **kwargs) -> "Future[dict]":
         query = {
             "info_hash": kwargs.get("info_hash"),
             "to_go": {"$gt": datetime.now()},
@@ -156,10 +154,11 @@ class Peer:
             "peer_id": kwargs.get("peer_id"),
             "key": kwargs.get("key")
         }
-        return nosql_client.peers.find_one(query)
+        return nosql_client.peers.find_one_and_update(query, 
+            {"$set": {'last_action': self.time}}, sort=[('to_go', pymongo.DESCENDING)]
+        )
     
-    @staticmethod
-    def _resume_peers_session(**kwargs):
+    def _resume_peers_session(self, **kwargs):
         query = {
             "info_hash": kwargs.get("info_hash"),
             "passkey": kwargs.get("passkey"),
@@ -167,7 +166,10 @@ class Peer:
             "peer_id": kwargs.get("peer_id"),
             "key": kwargs.get("key")
         }
-        return nosql_client.peers.find(query).sort('to_go', pymongo.DESCENDING).limit(1).to_list(1)
+        return nosql_client.peers.find_one_and_update(query, {"$set": {'last_action': self.time}}, 
+            sort=[('to_go', pymongo.DESCENDING)]
+        )
+        # .sort('to_go', pymongo.DESCENDING).limit(1).to_list(1)
         raise ErrorException("Never seen you before")
 
 
