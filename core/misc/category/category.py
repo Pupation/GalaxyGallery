@@ -59,12 +59,12 @@ async def get_categories(_: User = Depends(current_active_user)):
 
 @category_router.post('/category', response_model=GeneralResponse)
 async def add_category(payload: UpdateCategoryForm, _: User = Depends(user_with_permission(Permission.MANAGE_TORRENT)) ):
-    if nosql_client.categories.find_one({'cid': payload.cid}) is not None:
+    if await nosql_client.categories.find_one({'cid': payload.cid}) is not None:
         raise HTTPException(409, 'Category id already exist.')
     try:
         if payload.template_id == None:
             template_id = 0
-        nosql_client.categories.insert_one(dict(payload))
+        await nosql_client.categories.insert_one(dict(payload))
     except:
         raise HTTPException(400, "Error creating categories.")
     update_categories()
@@ -78,7 +78,7 @@ async def update_category(payload: UpdateCategoryForm, _: User = Depends(user_wi
         if payload[key] is not None:
             query[f"{key}"] = payload[key]
 
-    nosql_client.categories.find_one_and_update(
+    await nosql_client.categories.update_one(
         {'cid': payload['cid']},
         {'$set': query}
     )
@@ -87,9 +87,10 @@ async def update_category(payload: UpdateCategoryForm, _: User = Depends(user_wi
 
 @category_router.delete('/category', response_model=GeneralResponse)
 async def delete_category(payload: UpdateCategoryForm, _: User = Depends(user_with_permission(Permission.MANAGE_TORRENT))):
-    nosql_client.categories.find_one_and_delete(
+    print((await nosql_client.categories.delete_one(
         {'cid': payload.cid}
-    )
+    )))
+    update_categories()
     return {'ok': 1}
 
 update_categories()
