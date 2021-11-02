@@ -158,26 +158,27 @@ class User(Base):
         return {'name': role_name, 'color': f"#{role_color:06x}"}
                 
         
-    def set_passkey(self, new=False):
+    async def set_passkey(self, new=False):
         while True:
             new_passkey = md5((str(time.time()) + self.username).encode('utf-8')).hexdigest()
-            if get_userid_by_passkey(new_passkey) < 0:
+            if await get_userid_by_passkey(new_passkey) < 0:
                 break # the passkey is unique
         if not new:
             evict_cache_keyword([self.passkey, f"get_user_by_id*({self.id},):"])
         self.passkey = new_passkey
     
-    def add_role(self, db: Session, role_name: str, priority: int = 1):
-        role = db.query(Role).filter(Role.role_name == role_name).one()
+    async def add_role(self, db: AsyncSession, role_name: str, priority: int = 1):
+        sql = select(Role).where(Role.role_name == role_name)
+        role, = (await db.execute(sql)).first()
         urmap = URMap(role=role, priority=priority)
         self.role.append(urmap)
         db.add(urmap)
 
-    def remove_role(self, db: Session, role_name: str):
+    async def remove_role(self, db: AsyncSession, role_name: str):
         for role in self.role:
             if role.role.role_name == role_name:
                 self.role.remove(role)
-                db.delete(role)
+                await db.delete(role)
         db.add(self)
 
     def has_permission(self, permission: Union[int, List[int]]):

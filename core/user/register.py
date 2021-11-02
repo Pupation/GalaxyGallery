@@ -1,5 +1,6 @@
 from fastapi import Request, Response, Depends, BackgroundTasks, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.future import select
 from urllib.parse import quote_plus
 
 from . import router
@@ -16,9 +17,11 @@ import re
 
 from .utils import validate_password, validate_username
 
-def check_exists(db, username, email):
-    user = db.query(User).filter((User.username == username) | (User.email == email)).count()
-    return user > 0
+async def check_exists(db, username, email):
+    sql = select(func.count(User.id)).where((User.username == username) | (User.email == email))
+    print(str(sql))
+    count = await db.scalar(sql)
+    return count > 0
 
 class RegisterForm(BaseModel):
     username: str
@@ -54,44 +57,27 @@ class ErrorResponseForm(BaseModel):
     })
 async def register(request: Request, response: Response,bg: BackgroundTasks, form:RegisterForm , db:Session = Depends(get_sqldb)):
     try:
-        try:
-            form = form.dict() # FIXME: dirty hack
-        except:
-            raise GeneralException('Form not complete.', 400)
-        try:
-            username = form.get('username')
-            password = form.get('password')
-            email = form.get('email')
-            school = form.get('school', 0)
-            country = form.get('country', 0)
-            invitation_code = form.get('invitation_code', '')
-        except KeyError:
-            raise GeneralException('Form not complete.', 400)
-        if check_exists(db, username, email):
+        if await check_exists(db, form.username, form.email):
             raise GeneralException('Username or email already exists.', 409)
-        # if not validate_password(password):
-        #     raise GeneralException('Password not valid.', 400)
-        # if not validate_username(username):
-        #     raise GeneralException('Username not valid.', 400)
         secret = User.gen_secret()
-        passhash = User.get_passhash(secret, password)
+        passhash = User.get_passhash(secret, form.password)
     except GeneralException as ge:
         response.status_code = ge.retcode
         return {'error': ge.retcode, 'detail': ge.message}
 
     user = User(
-            username=username, 
+            username=form.username, 
             passhash=passhash,
-            email=email,
+            email=form.email,
             editsecret=User.gen_secret(),
             secret=secret
         )
     bg.add_task(send_mail, user.email, 'registration email', f'click this link to confirm your account http://{request.headers["host"]}/api/confirm?code={quote_plus(user.editsecret)}')
     # send_mail(user.email, 'registration email', f'click this link to confirm your account {request.headers["host"]}/api/confirm/{user.editsecret}')
-    user.set_passkey(True)
-    user.add_role(db, 'unconfirmed')
+    await user.set_passkey(True)
+    await user.add_role(db, 'unconfirmed')
     db.add(user)
-    db.commit()
+    await db.commit()
     # db.refresh(user)
     # db.refresh(user)
     return {'ok': 1}
@@ -100,20 +86,23 @@ async def register(request: Request, response: Response,bg: BackgroundTasks, for
 async def confirm(
     code:str,
     response: Response,
-    db: Session = Depends(get_sqldb)
+    db: AsyncSession = Depends(get_sqldb)
 ):
+    user: User
     try:
-        user = db.query(User).filter((User.editsecret == code) & (User.status == UserStatus.pending) ).one()
+        sql = select(User).where((User.editsecret == code) & (User.status == UserStatus.pending))
+        user, = (await db.execute(sql)).first()
+        # user = db.query(User).filter((User.editsecret == code) & (User.status == UserStatus.pending) ).one()
     except:
         response.status_code = 404
         return {'error': 404, 'detail': 'User not found.'}
     try:
         user.status = UserStatus.confirmed
         user.editsecret = b''
-        user.remove_role(db, 'unconfirmed')
-        user.add_role(db, 'newbie')
+        await user.remove_role(db, 'unconfirmed')
+        await user.add_role(db, 'newbie')
         db.add(user)
-        db.commit()
+        await db.commit()
         return {'ok': 1}
     except:
         response.status_code = 500
