@@ -82,14 +82,20 @@ def get_count_peer_stat_count_by_tid(torrent_id: int):
     return ret
 
 @gg_cache(cache_type='timed_cache')
-def get_count_peer_stat_count_by_uid(uid: int):
-    for db in get_sqldb():
-        query = db.query(UserPeerStat.status, func.count(UserPeerStat.status)).filter(
+async def get_count_peer_stat_count_by_uid(uid: int):
+    async for db in get_sqldb():
+        sql = select(UserPeerStat.status, func.count(UserPeerStat.status)).where(
             (UserPeerStat.uid == uid) &
             (UserPeerStat.last_action > datetime.now() - timedelta(minutes=30))
-            ).group_by(UserPeerStat.status)
-        print(str(query))
-        result = query.all()
+        ).group_by(UserPeerStat.status)
+        result = (await db.scalars(sql)).all()
+        # for record in result:
+            # print(record)
+        # query = db.query(UserPeerStat.status, func.count(UserPeerStat.status)).filter(
+        #     (UserPeerStat.uid == uid) &
+        #     (UserPeerStat.last_action > datetime.now() - timedelta(minutes=30))
+        #     ).group_by(UserPeerStat.status)
+        # result = query.all()
     ret = dict()
     for r,v in result:
         ret[r.name.lower()] = v
