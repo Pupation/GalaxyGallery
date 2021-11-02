@@ -3,6 +3,7 @@ import enum
 from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String, Enum, DateTime, BigInteger, Boolean, SmallInteger, Numeric, BINARY, Text
 from sqlalchemy.ext.asyncio import AsyncSession
+import asyncio
 from sqlalchemy.sql import func
 from sqlalchemy.future import select
 from datetime import datetime
@@ -93,24 +94,28 @@ class CreateTorrentForm(BaseModel):
     nfo_id: str
 
 def flush_page_cache():
-    evict_cache_keyword("{_get_torrent_list.__module__}.{_get_torrent_list.__name__}")
+    asyncio.create_task(evict_cache_keyword("{_get_torrent_list.__module__}.{_get_torrent_list.__name__}"))
 
 @gg_cache(cache_type='timed_cache')
-def _get_torrent_list(page, keyword):
+async def _get_torrent_list(page, keyword):
     ret = []
-    for db in get_sqldb():
-        query = db.query(TorrentSQL).filter(TorrentSQL.status == TorrentStatus.normal)
+    async for db in get_sqldb():
+        query = select(TorrentSQL).where(TorrentSQL.status == TorrentStatus.normal)
+        # query = db.query(TorrentSQL).filter(TorrentSQL.status == TorrentStatus.normal)
         if keyword: 
-            query = query.filter(func.concat(TorrentSQL.name, TorrentSQL.subname).like(f"%{keyword}%"))
+            query = query.where(func.concat(TorrentSQL.name, TorrentSQL.subname).like(f"%{keyword}%"))
         query = query.order_by(TorrentSQL.popstatus.desc(), TorrentSQL.rank_by.desc())
-        total = query.count()
+        print(str(query))
+        total = (await db.execute(query.with_only_columns(func.count()))).scalar()
+        print(str(total))
         if page * config.site.preference.per_page > total:
             return floor(total / config.site.preference.per_page), total # redirect to taht page number
-        for t in query.offset(
+        query = query.offset(
             page * config.site.preference.per_page
         ).limit(
             config.site.preference.per_page
-        ).all():
+        )
+        for t in (await db.execute(query)).all():
             ret.append(
                 {
                     'id': t.id,
@@ -125,8 +130,8 @@ def _get_torrent_list(page, keyword):
     return ret, total
 
 async def get_torrent_list(page: int = 0, keyword: str = None):
-    db: Session
-    ret, total = _get_torrent_list(page, keyword)
+    db: AsyncSession
+    ret, total = await _get_torrent_list(page, keyword)
     if isinstance(ret, int):
         return await get_torrent_list(ret, keyword)
     for record in ret:
