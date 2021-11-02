@@ -1,13 +1,13 @@
 from . import chatbox_router
 from main import gg
-import redis
+import aioredis as redis
 import json
 import asyncio
 
 from fastapi import WebSocket, HTTPException
 from fastapi.responses import HTMLResponse
 from typing import List
-import threading
+import datetime
 
 from models.user.auth import current_user, Permission
 from models.misc.message import MessageHandler
@@ -40,13 +40,13 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-def register_websocket_sub():
+async def register_websocket_sub():
     # while True:
     print('subscriber lanuched')
     client = redis.StrictRedis(connection_pool=redis_connection_pool)
     channel = client.pubsub()
-    channel.subscribe(NAME_MESSAGE_QUEUE)
-    for message in channel.listen():
+    await channel.subscribe(NAME_MESSAGE_QUEUE)
+    async for message in channel.listen():
         if message is None:
             continue
         # for message in channel.listen():
@@ -58,14 +58,16 @@ def register_websocket_sub():
             break
         data = json.loads(message['data'])
         if data['receiver_uid'] == -1:
-            asyncio.run(manager.broadcast_json(data))
+            asyncio.create_task(manager.broadcast_json(data))
 
 @gg.on_event('startup')
 def launch_thread():
     print('---------try luanching')
-    t = threading.Thread(target=register_websocket_sub)
-    t.start()
-
+    # t = threading.Thread(target=register_websocket_sub)
+    # t.start()
+    asyncio.create_task(register_websocket_sub())
+    import signal
+    
 @gg.get('/kill')
 async def kill():
     client = redis.StrictRedis(connection_pool=redis_connection_pool)
@@ -120,8 +122,9 @@ async def chatebox_websocket(websocket: WebSocket, token: str = ''):
         data = await websocket.receive_json()
         try:
             message = MessageHandler(**data)
+            message.message.send_time = datetime.datetime.now()
         except:
             websocket.send_json({'error': 422, 'detail': 'Missing field.'})
         client = redis.StrictRedis(connection_pool=redis_connection_pool)
-        client.publish(NAME_MESSAGE_QUEUE, message.message.json())
+        await client.publish(NAME_MESSAGE_QUEUE, message.message.json())
         await websocket.send_text(f"Message was {data}")
