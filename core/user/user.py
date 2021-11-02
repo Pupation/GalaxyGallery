@@ -66,7 +66,7 @@ async def token(
     db: Session = Depends(get_sqldb),
 ):
     try:
-        user = User.login(db, form.username, form.password)
+        user = await User.login(db, form.username, form.password)
         expires = form.expires
         if expires is not None:
             expires = EXPIRATION[expires]
@@ -90,24 +90,26 @@ async def token(
 @router.get('/create_all') # FIXME: temora implementation for initialize the database
 async def create_db():
     from models import create_all
-    create_all()
+    await create_all()
+
 
 @router.get('/reset_passkey')
-async def reset_passkey(user:User = Depends(current_active_user), db:Session = Depends(get_sqldb)):
-    user.set_passkey()
+async def reset_passkey(user:User = Depends(current_active_user), db:AsyncSession = Depends(get_sqldb)):
+    await user.set_passkey()
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
+    return {'ok': 1}
 
 @router.get('/profile/{userid}')
 @router.get('/profile/')
-def get_profile(userid:Optional[int] = None, user:User = Depends(current_active_user)):
+async def get_profile(userid:Optional[int] = None, user:User = Depends(current_active_user)):
     if user.id == userid or userid == None:
         target_user = user
         bypass_privacy = True
     else:
         try:
-            target_user = get_user_by_id(userid)
+            target_user = await get_user_by_id(userid)
         except:
             raise HTTPException(404, "User not found")
         bypass_privacy = False

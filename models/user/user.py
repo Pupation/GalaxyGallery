@@ -110,9 +110,10 @@ class User(Base):
         return passhash == self.passhash
     
     @staticmethod
-    def login(db:Session, username, password):
+    async def login(db:AsyncSession, username, password) -> 'User':
             try:
-                user = db.query(User).filter(User.username == username).one()
+                sql = select(User).where((User.username == username) | (User.email == username))
+                user, = (await db.execute(sql)).first()
             except:
                 raise GeneralException("Username or password wrong", 401)
             if not user.has_permission(Permission.LOGIN):
@@ -120,8 +121,8 @@ class User(Base):
             if user.validate_password(password):
                 user.last_login = datetime.now()
                 db.add(user)
-                db.commit()
-                db.refresh(user)
+                await db.commit()
+                await db.refresh(user)
                 return user
             else:
                 raise GeneralException("Username or password wrong", 401)
@@ -164,7 +165,7 @@ class User(Base):
             if await get_userid_by_passkey(new_passkey) < 0:
                 break # the passkey is unique
         if not new:
-            evict_cache_keyword([self.passkey, f"get_user_by_id*({self.id},):"])
+            await evict_cache_keyword([self.passkey, f"get_user_by_id*({self.id},):"])
         self.passkey = new_passkey
     
     async def add_role(self, db: AsyncSession, role_name: str, priority: int = 1):

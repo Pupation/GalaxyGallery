@@ -69,13 +69,13 @@ def gg_cache(func=None, cache_type='lru_cache', maxsize=None):
 def clear_cache():
     pass
 
-def evict_cache_keyword(keyword: Union[str, List[str]]):
+async def evict_cache_keyword(keyword: Union[str, List[str]]):
     client = redis.StrictRedis(connection_pool=redis_connection_pool)
     to_delete = []
     if not isinstance(keyword, list):
         keyword = [keyword]
     for key in keyword:
-        to_delete += client.keys(f"*{key}*")
+        to_delete += await client.keys(f"*{key}*")
     if len(to_delete)> 0:
-        client.delete(*to_delete)
+        await client.delete(*to_delete)
 
