@@ -89,7 +89,7 @@ class Peer:
                         kwargs['downloaded'] - self.peer.downloaded,
                         self.peer.to_go - self.peer.last_action
                     )
-                    print(self.peer)
+                    # print(self.peer)
                 except:
                     raise Exception('Never seen you before')
         # if event != 'started':
@@ -121,13 +121,11 @@ class Peer:
             return self.incr
         else:
             update_dict = {'$set': {
-                    "prev_action": self.peer.last_action,
-                    "to_go": self.time + next_allowance,
-                    "downloaded": self.request["downloaded"],
-                    "uploaded": self.request["uploaded"],
-                    "seeder": seeder,
-                    "paused": self.event == "paused",
-                }}
+                "prev_action": self.peer.last_action,
+                "to_go": self.time + next_allowance,
+                "seeder": seeder,
+                "paused": self.event == "paused",
+            }}
             if 'ipv4' in self.request:
                 update_dict['$set']['ipv4'] = self.request['ipv4']
             if 'ipv6' in self.request:
@@ -136,8 +134,8 @@ class Peer:
             # await will block forever, but the transaction has been completed by manually checking mongodb
             # I'm not sure if it's possible to have memory leakage here
 
-            update_one = await nosql_client.peers.update_one( 
-            # update_one = nosql_client.peers.update_one( 
+            update_one = await nosql_client.peers.update_one(
+                # update_one = nosql_client.peers.update_one(
                 {"_id": self.objectId},
                 update_dict
             )
@@ -154,10 +152,13 @@ class Peer:
             "peer_id": kwargs.get("peer_id"),
             "key": kwargs.get("key")
         }
-        return nosql_client.peers.find_one_and_update(query, 
-            {"$set": {'last_action': self.time}}, sort=[('to_go', pymongo.DESCENDING)]
-        )
-    
+        return nosql_client.peers.find_one_and_update(query,
+                                                      {"$set": {'last_action': self.time,
+                                                                'uploaded': kwargs.get('uploaded'),
+                                                                'downloaded': kwargs.get('downloaded')
+                                                                }}, sort=[('to_go', pymongo.DESCENDING)]
+                                                      )
+
     def _resume_peers_session(self, **kwargs):
         query = {
             "info_hash": kwargs.get("info_hash"),
@@ -166,12 +167,15 @@ class Peer:
             "peer_id": kwargs.get("peer_id"),
             "key": kwargs.get("key")
         }
-        return nosql_client.peers.find_one_and_update(query, {"$set": {'last_action': self.time}}, 
-            sort=[('to_go', pymongo.DESCENDING)]
-        )
+        return nosql_client.peers.find_one_and_update(query, {"$set": {'last_action': self.time,
+                                                                       'uploaded': kwargs.get('uploaded'),
+                                                                       'downloaded': kwargs.get('downloaded')}
+                                                            },
+                                                      sort=[
+                                                          ('to_go', pymongo.DESCENDING)]
+                                                      )
         # .sort('to_go', pymongo.DESCENDING).limit(1).to_list(1)
         raise ErrorException("Never seen you before")
-
 
 
 class PeerList:
@@ -202,7 +206,7 @@ class PeerList:
         self.records = self.async_query(query_params, result_projection)
         self.compact = compact
         self.seeder = seeder
-    
+
     @staticmethod
     def async_query(query_params, result_projection):
         return nosql_client.peers.find(query_params, result_projection).to_list(None)
@@ -246,21 +250,21 @@ async def _get_peer_count(info_hash):
     }
     cursor = nosql_client.peers.aggregate(
         [{"$match": query_params},
-        {"$group":
+         {"$group":
             {"_id": {"$concat":
-                    [
-                        {"$toString": "$seeder"},
-                        " ",
-                        {"$toString": "$paused"}
-                    ]},
+                     [
+                         {"$toString": "$seeder"},
+                         " ",
+                         {"$toString": "$paused"}
+                     ]},
                 "count": {"$sum": 1}}
-        }
-        ])
+          }
+         ])
     ret = []
     for record in await cursor.to_list(None):
         ret.append(record)
     return ret
-        
+
 
 async def get_peer_count(info_hash: bytes): # async for non blocking
 
@@ -278,7 +282,8 @@ async def get_peer_count(info_hash: bytes): # async for non blocking
     for c in counts:
         if c['_id'] == "false false":
             ret['incomplete'] += c['count']
-            ret['downloaders'] += c['count'] # BEP-021 http://bittorrent.org/beps/bep_0021.html
+            # BEP-021 http://bittorrent.org/beps/bep_0021.html
+            ret['downloaders'] += c['count']
         elif c['_id'] == "false true":
             ret['incomplete'] += c['count']
         elif c['_id'] == "true false":

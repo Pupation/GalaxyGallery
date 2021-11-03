@@ -88,7 +88,7 @@ async def get_count_peer_stat_count_by_uid(uid: int):
             (UserPeerStat.uid == uid) &
             (UserPeerStat.last_action > datetime.now() - timedelta(minutes=30))
         ).group_by(UserPeerStat.status)
-        result = (await db.scalars(sql)).all()
+        result = (await db.execute(sql)).all()
         # for record in result:
             # print(record)
         # query = db.query(UserPeerStat.status, func.count(UserPeerStat.status)).filter(

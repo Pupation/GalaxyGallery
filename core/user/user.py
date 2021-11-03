@@ -119,5 +119,5 @@ async def get_profile(userid:Optional[int] = None, user:User = Depends(current_a
 
 @router.get('/peer/count', response_model = UserPeerStatCountResponse)
 async def get_peer_stat_count(user: User = Depends(user_with_permission(Permission.DOWNLOAD_TORRENT))):
-    ret = get_count_peer_stat_count_by_uid(user.id)
+    ret = await get_count_peer_stat_count_by_uid(user.id)
     return ret

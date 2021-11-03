@@ -85,9 +85,9 @@ async def announce(
         # backgroundTasks.add_task(
             # accountingService, peer, reannounce_deadline, left)
         # await accountingService(peer, reannounce_deadline, left)
-        task = asyncio.create_task(accountingService(peer, reannounce_deadline, left)) # potential memory leak?
+        _ = asyncio.create_task(accountingService(peer, reannounce_deadline, left)) # potential memory leak?
         # backgroundTasks.add_task(
-        #     cleanup_future, task
+        #     cleanup_future, _
         # )
 
         return BencResponse(rep_dict)
@@ -110,6 +110,6 @@ async def announce(
 #     print('start waiting')
 #     # while not task.done():
 #     #     print('task is still running')
-#     #     asyncio.sleep(0.1)
-#     # await task
+#     await asyncio.sleep(5)
+#     await task
 #     print('task finished')

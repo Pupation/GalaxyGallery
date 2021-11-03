@@ -105,9 +105,7 @@ async def _get_torrent_list(page, keyword):
         if keyword: 
             query = query.where(func.concat(TorrentSQL.name, TorrentSQL.subname).like(f"%{keyword}%"))
         query = query.order_by(TorrentSQL.popstatus.desc(), TorrentSQL.rank_by.desc())
-        print(str(query))
         total = (await db.execute(query.with_only_columns(func.count()))).scalar()
-        print(str(total))
         if page * config.site.preference.per_page > total:
             return floor(total / config.site.preference.per_page), total # redirect to taht page number
         query = query.offset(
@@ -115,7 +113,7 @@ async def _get_torrent_list(page, keyword):
         ).limit(
             config.site.preference.per_page
         )
-        for t in (await db.execute(query)).all():
+        for t, in (await db.execute(query)).all():
             ret.append(
                 {
                     'id': t.id,
@@ -135,7 +133,7 @@ async def get_torrent_list(page: int = 0, keyword: str = None):
     if isinstance(ret, int):
         return await get_torrent_list(ret, keyword)
     for record in ret:
-        info_hash = record.pop('info_hash')
+        info_hash = record['info_hash']
         record.update(** await get_peer_count(info_hash))
     return { 'data': ret,
             'page': page,
