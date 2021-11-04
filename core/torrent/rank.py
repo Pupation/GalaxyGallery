@@ -28,10 +28,10 @@ async def get_trending_keyword(keyword: str):
         dates = datetime.now()
         expire = dates.replace(second=0, microsecond=0, minute=0, hour= dates.hour + 1)
         rank_names = {}
-        for i in range(3, 0, -1):
+        for i in range(3):
             rank_name = get_rank_name(dates)
             if await client.exists(rank_name) != 0:
-                rank_names[rank_name] = 2- 0.5 * i
+                rank_names[rank_name] = 2 - 0.5 * i
             dates -= timedelta(days=1)
         await client.zunionstore(key_name, rank_names)
         await client.expireat(key_name, expire)
