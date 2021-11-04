@@ -61,7 +61,3 @@ async def search_suggestion(keyword: str) -> List[tuple]:
                     break
     ret.sort(key=lambda x: x[1])
     return ret[:5]
-
-@router.get('/trending')
-async def search_trending(keyword:str = '', _: User = Depends(current_active_user)):
-    return await get_trending_keyword(keyword)

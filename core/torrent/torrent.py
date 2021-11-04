@@ -42,7 +42,7 @@ async def torrent_list(request: Request,
                        advanced: bool = False,
                        _: User = Depends(current_active_user)
                        ):
-    if not semi_search and page == 0:
+    if not semi_search and page == 0 and keyword != '' and keyword is not None:
         await query_keyword(keyword)
     ret = await get_torrent_list(page, keyword)
     return ret
