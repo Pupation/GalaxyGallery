@@ -43,7 +43,7 @@ class AioRedisLRU:
                     return task
                 except KeyError:
                     result = await func(*args, **kwargs)
-                    task = asyncio.create_task(self.set(key, result, ttl))
+                    await self.set(key, result, ttl)
                     return result
 
         # decorator without arguments

@@ -5,9 +5,6 @@ from fastapi.responses import StreamingResponse, RedirectResponse
 from datetime import timedelta, datetime
 import redis
 import uuid
-import pickle
-from urllib.parse import quote_plus
-from sqlalchemy.orm import Session
 
 from models.torrent.torrent import TorrentSQL, CreateTorrentForm, TorrentStatus, TorrentNoSQL
 from models.user.user import User, Permission
@@ -18,6 +15,7 @@ from utils.connection.sql.db import get_sqldb
 from utils.connection.nosql.db import client as nosql_db
 from main import config
 from models.torrent import get_peer_count, get_torrent_list, get_torrent_detail
+from .rank import query_keyword
 
 from pydantic import BaseModel
 from typing import List, Optional
@@ -40,9 +38,12 @@ class TorrentListReturn(BaseModel):
 async def torrent_list(request: Request,
                        page: int = 0,
                        keyword: str = None,
+                       semi_search: bool = False,
                        advanced: bool = False,
                        _: User = Depends(current_active_user)
                        ):
+    if not semi_search and page == 0:
+        await query_keyword(keyword)
     ret = await get_torrent_list(page, keyword)
     return ret
 
