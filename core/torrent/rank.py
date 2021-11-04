@@ -46,7 +46,7 @@ async def get_trending_keyword(keyword: str):
     else:
         return await search_suggestion(keyword)
 
-# @gg_cache(cache_type='timed_cache')
+@gg_cache(cache_type='timed_cache')
 async def search_suggestion(keyword: str) -> List[tuple]:
     client = redis.StrictRedis(connection_pool=redis_connection_pool)
     key_name = get_trending_keyword.__module__+':trending'
@@ -61,3 +61,7 @@ async def search_suggestion(keyword: str) -> List[tuple]:
                     break
     ret.sort(key=lambda x: x[1])
     return ret[:5]
+
+@router.get('/trending')
+async def search_trending(keyword:str = '', _: User = Depends(current_active_user)):
+    return await get_trending_keyword(keyword)
