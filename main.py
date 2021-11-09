@@ -35,3 +35,9 @@ async def stop(self):
     print('---------try killing')
     # client = redis.StrictRedis(connection_pool=redis_connection_pool)
     # client.publish(NAME_MESSAGE_QUEUE, 'KILL')
+
+from utils.connection.mq import publish_with_delay
+
+@gg.get('/test')
+async def test(m: str = 'hello world!'):
+    await publish_with_delay(m)
