@@ -50,9 +50,10 @@ class Torrent:
         if not for_duplicate_compare:
             return sha1(bencodepy.encode(self.torrent[b'info'])).digest()
         else: # for duplicate comparison
-            tmp = self.torrent[b'info'].pop(b'source')
-            ret = sha1(bencodepy.encode(self.torrent[b'info'])).digest()
-            self.torrent[b'info'][b'source'] = tmp
+            tmp = self.torrent[b'info'].copy()
+            if b'source' in tmp:
+                tmp.pop(b'source')
+            ret = sha1(bencodepy.encode(tmp)).digest()
             return ret
 
 if __name__ == "__main__":
