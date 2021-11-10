@@ -4,6 +4,8 @@ from aio_pika.pool import Pool
 from asyncio import get_running_loop, create_task
 from datetime import datetime, timedelta
 from typing import Union
+from functools import partial
+import signal
 import pickle
 
 async def _get_connection():
@@ -36,6 +38,12 @@ async def consume_dealyed_message():
         queue = await channel.declare_queue('delayed_queue')
         await queue.bind(exchange, '')
         async with queue.iterator() as iter:
+            async def calcel_iter():
+                await iter.close()
+            get_running_loop().add_signal_handler(                                                  
+                signal.SIGINT, partial(create_task, calcel_iter)                           
+            )
+
             async for message in iter:
                 async with message.process():
                     # print(message.body)
