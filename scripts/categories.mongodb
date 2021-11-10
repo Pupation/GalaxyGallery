@@ -16,7 +16,7 @@ db.categories.insertMany([
   { 'cid': 2, 'name': '动作片', 'template_id': 0, 'parent': 1},
   { 'cid': 4, 'name': '战争片', 'template_id': 0, 'parent': 2},
   { 'cid': 5, 'name': '犯罪片', 'template_id': 0, 'parent': 2},
-  { 'cid': 2, 'name': '爱情片', 'template_id': 0, 'parent': 1},
+  { 'cid': 6, 'name': '爱情片', 'template_id': 0, 'parent': 1},
   { 'cid': 3, 'name': '喜剧片', 'template_id': 0, 'parent': 1},
   { 'cid': 10, 'name': '软件', 'template_id': 0 },
   { 'cid': 11, 'name': 'Windows', 'template_id': 0, 'parent': 10 },
