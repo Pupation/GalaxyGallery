@@ -6,7 +6,7 @@ from datetime import timedelta, datetime
 import redis
 import uuid
 
-from models.torrent.torrent import TorrentSQL, CreateTorrentForm, TorrentStatus, TorrentNoSQL
+from models.forms.torrent import CreateTorrentForm
 from models.user.user import User, Permission
 from models.user.auth import current_active_user
 from utils.cache import redis_connection_pool
@@ -17,24 +17,10 @@ from main import config
 from models.torrent import get_peer_count, get_torrent_list, get_torrent_detail
 from .rank import query_keyword
 
-from pydantic import BaseModel
-from typing import List, Optional
+from models.forms.torrent import TorrentListResponse, TorrentDetailResponse
 
-class TorrentListReturn(BaseModel):
-    class TorrentBreifResponse(BaseModel):
-        id: int
-        name: str
-        subname: str
-        downloaded: int
-        complete: int
-        incomplete: int
-        size: tuple
-        rank_by: datetime
-    data: List[TorrentBreifResponse]
-    page: int
-    total: int
 
-@router.get('/torrent_list', response_model=TorrentListReturn)
+@router.get('/torrent_list', response_model=TorrentListResponse)
 async def torrent_list(request: Request,
                        page: int = 0,
                        keyword: str = None,
@@ -47,11 +33,6 @@ async def torrent_list(request: Request,
     ret = await get_torrent_list(page, keyword)
     return ret
 
-class TorrentDetailResponse(BaseModel):
-    info_hash: str
-    desc: str
-    detail: Optional[dict]
-    filename: str
 
 @router.get('/torrent_detail/{torrent_id}', response_model=TorrentDetailResponse)
 async def torrent_detail(request: Request, torrent_id: int, _: User = Depends(current_active_user)):

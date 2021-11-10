@@ -11,9 +11,7 @@ from models.helper import GeneralException
 from utils.provider import send_mail
 from utils.connection.sql.db import get_sqldb
 
-from pydantic import BaseModel, EmailStr, validator
-from typing import Optional
-import re
+from models.forms import RegisterResponse, ErrorResponseForm, RegisterForm
 
 from .utils import validate_password, validate_username
 
@@ -22,33 +20,6 @@ async def check_exists(db, username, email):
     print(str(sql))
     count = await db.scalar(sql)
     return count > 0
-
-class RegisterForm(BaseModel):
-    username: str
-    password: str
-    email: EmailStr
-    school: Optional[int]
-    country: Optional[int]
-    invitation_code: Optional[str]
-
-    @validator('password')
-    def passwords_complex(cls, v):
-        if not re.match("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z]).+$", v):
-            raise ValueError('Password must meet requirements')
-        return v
-    
-    @validator('username')
-    def verify_username(cls, v):
-        if '!' in v:
-            raise ValueError('Username must not contain "!"')
-        return v
-
-class RegisterResponse(BaseModel):
-    ok: int = 1
-
-class ErrorResponseForm(BaseModel):
-    error: int
-    detail: str
 
 @router.post('/register/', 
     responses={

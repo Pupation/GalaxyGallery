@@ -83,15 +83,6 @@ class TorrentNoSQL(BaseModel):
     torrent: Optional[bytes]
     detail: Dict[str, Any]
 
-class CreateTorrentForm(BaseModel):
-    name: str
-    subname: str
-    file_id: str
-    desc: str
-    category: int
-    assistant_id: Optional[str]
-    imdb_link: Optional[str]
-    nfo_id: str
 
 def flush_page_cache():
     asyncio.create_task(evict_cache_keyword("{_get_torrent_list.__module__}.{_get_torrent_list.__name__}"))

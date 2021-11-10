@@ -14,7 +14,12 @@ from models.torrent.torrent import get_torrent_id
 from .accounting import accountingService
 
 
-@gg.get('/announce')
+@gg.get('/announce', responses={200:
+                                {'content':
+                                 {'text/plain': 'bencode'},
+                                 'description': 'Bencoded information'}
+                                }
+        )
 async def announce(
     request: Request,
     backgroundTasks: BackgroundTasks,
@@ -36,7 +41,7 @@ async def announce(
     info_hash = unquote_to_bytes(info_hash)
     try:
         coroutine_checkip = check_ip(ip)                # redis cache
-        coroutine_checkpasskey = check_passkey(passkey) # redis cache
+        coroutine_checkpasskey = check_passkey(passkey)  # redis cache
         # torrent_client = check_ua_or_400(request)       # python local cache
         torrent_id = get_torrent_id(info_hash)          # redis cache
         check_port_or_400(port)
@@ -47,7 +52,7 @@ async def announce(
             raise ErrorException('Passkey Invalid.', 401)
         elif userid == -2:
             raise ErrorException('Permission Denied.', 403)
-            
+
         seeder = left == 0
         peer = Peer(info_hash=info_hash,                # MongoDB query
                     peer_id=peer_id,
@@ -63,8 +68,9 @@ async def announce(
                     key=key,
                     **ip.todict()
                     )
-        peer_count = get_peer_count(info_hash)                   # async function
-        peers = PeerList(seeder=(seeder or (event == 'paused')), # MongoDB query, async function
+        peer_count = get_peer_count(
+            info_hash)                   # async function
+        peers = PeerList(seeder=(seeder or (event == 'paused')),  # MongoDB query, async function
                          info_hash=info_hash,
                          requester_ip=ip,
                          compact=(compact == 1)
@@ -85,7 +91,8 @@ async def announce(
         # backgroundTasks.add_task(
             # accountingService, peer, reannounce_deadline, left)
         # await accountingService(peer, reannounce_deadline, left)
-        _ = asyncio.create_task(accountingService(peer, reannounce_deadline, left)) # potential memory leak?
+        _ = asyncio.create_task(accountingService(
+            peer, reannounce_deadline, left))  # potential memory leak?
         # backgroundTasks.add_task(
         #     cleanup_future, _
         # )

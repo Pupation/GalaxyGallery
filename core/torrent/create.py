@@ -8,16 +8,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.sql import func
 
-from models.torrent.torrent import TorrentSQL, CreateTorrentForm, TorrentStatus, TorrentNoSQL, flush_page_cache
+from models.torrent.torrent import TorrentSQL, TorrentStatus, TorrentNoSQL, flush_page_cache
+from models.forms.torrent import CreateTorrentForm, UploadTorrentResponse
 from models.user.user import User, Permission
 from models.user.auth import current_active_user, user_with_permission
 from utils.cache import redis_connection_pool
 from utils.provider.torrent import Torrent
 from utils.connection.sql.db import get_sqldb
 from utils.connection.nosql.db import client as nosql_db
-from pydantic import BaseModel
 from main import config
-from typing import Optional, List
 
 def is_valid_uuid4(_uuid):
     try:
@@ -75,15 +74,6 @@ async def create_torrent(request: Request,form: CreateTorrentForm, user: User = 
     flush_page_cache()
     await cache.delete(form.file_id)
     return {'ok': 1, 'id': torrent_sql.id}
-
-class UploadTorrentResponse(BaseModel):
-    id: str
-    name: str
-    exp: datetime
-    size: Optional[str]
-    files: Optional[List[str]]
-    info_hash: Optional[str]
-    nfo: Optional[bool]
 
 @router.post('/upload_file', responses={
     200: {'model': UploadTorrentResponse}

@@ -14,7 +14,6 @@ from . import router
 from fastapi import Depends, Request, Response, HTTPException
 from fastapi.responses import HTMLResponse
 
-from pydantic import BaseModel
 
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -24,34 +23,12 @@ from models.user.user import *
 from models.user.auth import create_access_token, current_active_user, user_with_permission
 from models.torrent.user_peer_stat import UserPeerStatCountResponse, get_count_peer_stat_count_by_uid
 
-from .register import ErrorResponseForm
+from models.forms import ErrorResponseForm, LoginResponse, LoginForm
 
 @router.get('/login')
 async def login():
     return HTMLResponse("<input name='username'/> <input name='password' type='password'/> <input type='submit'/>")
 
-class LoginForm(BaseModel):
-    username: str
-    password: str
-    expires: Optional[int]
-
-class LoginResponse(BaseModel):
-    class UserResponse(BaseModel):
-        class RoleResponse(BaseModel):
-            name: str
-            color: str
-        username: str
-        role: Optional[RoleResponse]
-        uploaded: Optional[str]
-        downloaded: Optional[str]
-        seedtime: Optional[int]
-        leechtime: Optional[int]
-        gender: Optional[UserGender]
-        email: Optional[EmailStr]
-    access_token: str
-    token_type: str = 'bearer'
-    userid: int
-    user: UserResponse
 
 @router.post('/token/', responses={
     200: {'model': LoginResponse},
