@@ -3,6 +3,7 @@ db:
     url: mongodb://10.10.10.10:27017
     name: gg
   sql: "mysql+asyncmy://root:galaxygallery@10.10.10.10:3306/gg"
+  mq: "amqp://guest:guest@10.10.10.10:49158"
 
 site:
   name: "Galaxy Gallery Private Tracker"

@@ -3,8 +3,7 @@ import aio_pika
 from aio_pika.pool import Pool
 from asyncio import get_running_loop, create_task
 from datetime import datetime, timedelta
-from typing import Callable, Union
-from functools import partial
+from typing import Union
 import pickle
 
 async def _get_connection():
@@ -24,21 +23,23 @@ channel_pool = Pool(_get_channel, max_size=40, loop=get_running_loop())
 @gg.on_event('startup')
 async def initialize_delayed_mq():
     channel = await _get_channel()
-    await channel.declare_exchange('delayed', 'x-delayed-message', True, False, arguments={'x-delayed-type': 'direct'})
+    exchange = await channel.declare_exchange('delayed', 'x-delayed-message', True, False, arguments={'x-delayed-type': 'direct'})
     create_task(consume_dealyed_message())
 
 
 async def consume_dealyed_message():
     channel: aio_pika.Channel
     async with channel_pool.acquire() as channel:
+        from .delay import delay
         await channel.set_qos(10)
-        # exchange = await channel.get_exchange('delayed')
-        await channel.declare_queue('delayed_queue')
-        queue = await channel.get_queue('delayed_queue', ensure=True)
+        exchange = await channel.get_exchange('delayed')
+        queue = await channel.declare_queue('delayed_queue')
+        await queue.bind(exchange, '')
         async with queue.iterator() as iter:
             async for message in iter:
                 async with message.process():
-                    print(message.body)
+                    # print(message.body)
+                    await delay.execute(pickle.loads(message.body))
 
 
 async def publish_with_delay(message, delay: Union[timedelta, datetime] = timedelta(seconds=5)):
@@ -55,16 +56,5 @@ async def publish_with_delay(message, delay: Union[timedelta, datetime] = timede
             }
         )
         await exchange.publish(msg, '')
-
-class DelayedTask:
-    def __init__(self):
-        self.registed_func = dict()
-
-    def spawn(self, _func_key: str, delay, *args, **kwargs):
-        pass
-
-    def reg(self, func: Callable):
-        self.registed_func[func.__module__ + func.__name__] = func
-        return partial(self.spawn, func.__module__ + func.__name__)
-
-delay = DelayedTask()
+    
+from .delay import delay
