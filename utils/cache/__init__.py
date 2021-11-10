@@ -75,7 +75,9 @@ async def evict_cache_keyword(keyword: Union[str, List[str]]):
     if not isinstance(keyword, list):
         keyword = [keyword]
     for key in keyword:
-        to_delete += await client.keys(f"*{key}*")
+        async for ret in client.scan_iter(match=f"*{key}*"):
+            to_delete.append(ret)
+        # to_delete += await client.keys(f"*{key}*")
     if len(to_delete)> 0:
         await client.delete(*to_delete)
 
