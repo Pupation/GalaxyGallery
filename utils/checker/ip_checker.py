@@ -6,19 +6,23 @@ from utils.connection.nosql.db import client
 from utils.cache import gg_cache
 from models.helper import IP
 
-from fastapi import Request, HTTPException
+from fastapi import Request, Response
 from fastapi.logger import logger
 
 from main import gg
 
 import time
+import json
 
 @gg.middleware("http")
-async def mw_check_ip(request: Request, call_next):
+async def mw_check_ip(request: Request,call_next):
     client_ip = IP(request.client.host)
     # print("client access with ip: %s" % client_ip)
     if await check_ip(client_ip):
-        raise HTTPException(403, "Your are not allowed to access this server.")
+        response = Response()
+        response.status_code = 403
+        response.body = json.dumps({'detail':'You are not allowed to access this server.', 'error': 403}).encode('utf-8')
+        return response
     if '/announce' in str(request.url):
         start = time.time()
     response = await call_next(request)
@@ -28,9 +32,9 @@ async def mw_check_ip(request: Request, call_next):
 
 
 @gg_cache
-def _check_db(ip: int, version: int):
+async def _check_db(ip: int, version: int):
     if version == 4:
-        ret = client.ip_blacklist.find_one({
+        ret = await client.ip_blacklist.find_one({
             "lower": { "$lte" : ip },
             "higher": { "$gte": ip },
             "version": 4
@@ -40,7 +44,7 @@ def _check_db(ip: int, version: int):
         higher63 = (ip >> 65) & 0x7FFFFFFF
         mid63 = (ip & 0x1ffffffffffffffE) >> 1
         lower2 = ip & 0x3
-        ret = client.ip_blacklist.find_one({
+        ret = await client.ip_blacklist.find_one({
             "lower": { "$lte" : higher63 },
             "higher": { "$gte": higher63 },
             "mid_higher": {"$gte": mid63},
@@ -68,8 +72,8 @@ async def _check_ip(ip: IP):
     ret = False
     if ip.has_ipv4():
         ipv4 = int(ipaddress.ip_address(ip.ipv4))
-        ret = ret or _check_db(ipv4, 4)
+        ret = ret or await _check_db(ipv4, 4)
     if ip.has_ipv6():
         ipv6 = int(ipaddress.ip_address(ip.ipv6))
-        ret = ret or _check_db(ipv6, 6)
+        ret = ret or await _check_db(ipv6, 6)
     return ret

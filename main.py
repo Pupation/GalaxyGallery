@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.logger import logger
 from fastapi.middleware.cors import CORSMiddleware
-
+from fastapi.staticfiles import StaticFiles
 
 gg = FastAPI()
 
@@ -27,6 +27,8 @@ gg.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+gg.mount("/static", StaticFiles(directory="static"), name="static")
 
 @gg.on_event('shutdown')
 async def stop(self):

@@ -1,7 +1,8 @@
 from .. import Base
 from sqlalchemy import Integer, Column, ForeignKey, Enum, DateTime, BigInteger
 from sqlalchemy.sql import func
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from datetime import datetime, timedelta
 import enum
 from pydantic import BaseModel
@@ -55,15 +56,18 @@ class UserPeerStatCountResponse(BaseModel):
     partial_seed: int = 0
 
 @gg_cache(cache_type='timed_cache')
-def get_last_action(tid):
-    db: Session
-    for db in get_sqldb():
+async def get_last_action(tid):
+    db: AsyncSession
+    async for db in get_sqldb():
         try:
-            return db.query(func.max(UserPeerStat.last_action).label('last_action')).filter_by(tid=tid, status=UserSeedStatus.SEEDING).one() - datetime.now()
+            sql = select(func.max(UserPeerStat.last_action).label('last_action')).where(UserPeerStat.tid==tid, UserPeerStat.status==UserSeedStatus.SEEDING)
+            result, = (await db.execute(sql)).first()
+            print(result)
+            return result
         except:
             return datetime.now()
         finally:
-            db.close()
+            await db.close()
 
 @gg_cache(cache_type='timed_cache')
 def get_count_peer_stat_count_by_tid(torrent_id: int):
@@ -78,14 +82,20 @@ def get_count_peer_stat_count_by_tid(torrent_id: int):
     return ret
 
 @gg_cache(cache_type='timed_cache')
-def get_count_peer_stat_count_by_uid(uid: int):
-    for db in get_sqldb():
-        query = db.query(UserPeerStat.status, func.count(UserPeerStat.status)).filter(
+async def get_count_peer_stat_count_by_uid(uid: int):
+    async for db in get_sqldb():
+        sql = select(UserPeerStat.status, func.count(UserPeerStat.status)).where(
             (UserPeerStat.uid == uid) &
             (UserPeerStat.last_action > datetime.now() - timedelta(minutes=30))
-            ).group_by(UserPeerStat.status)
-        print(str(query))
-        result = query.all()
+        ).group_by(UserPeerStat.status)
+        result = (await db.execute(sql)).all()
+        # for record in result:
+            # print(record)
+        # query = db.query(UserPeerStat.status, func.count(UserPeerStat.status)).filter(
+        #     (UserPeerStat.uid == uid) &
+        #     (UserPeerStat.last_action > datetime.now() - timedelta(minutes=30))
+        #     ).group_by(UserPeerStat.status)
+        # result = query.all()
     ret = dict()
     for r,v in result:
         ret[r.name.lower()] = v

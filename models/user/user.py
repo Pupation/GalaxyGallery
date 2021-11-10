@@ -7,7 +7,9 @@ from typing import Union, List
 
 from sqlalchemy import Column, Integer, String, Enum, DateTime, BigInteger, Boolean, SmallInteger, Numeric, BINARY, ForeignKey
 from sqlalchemy.orm import Session, relationship
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
+from sqlalchemy.future import select
 from datetime import datetime
 
 from .. import Base
@@ -108,9 +110,10 @@ class User(Base):
         return passhash == self.passhash
     
     @staticmethod
-    def login(db:Session, username, password):
+    async def login(db:AsyncSession, username, password) -> 'User':
             try:
-                user = db.query(User).filter(User.username == username).one()
+                sql = select(User).where((User.username == username) | (User.email == username))
+                user, = (await db.execute(sql)).first()
             except:
                 raise GeneralException("Username or password wrong", 401)
             if not user.has_permission(Permission.LOGIN):
@@ -118,8 +121,8 @@ class User(Base):
             if user.validate_password(password):
                 user.last_login = datetime.now()
                 db.add(user)
-                db.commit()
-                db.refresh(user)
+                await db.commit()
+                await db.refresh(user)
                 return user
             else:
                 raise GeneralException("Username or password wrong", 401)
@@ -156,26 +159,27 @@ class User(Base):
         return {'name': role_name, 'color': f"#{role_color:06x}"}
                 
         
-    def set_passkey(self, new=False):
+    async def set_passkey(self, new=False):
         while True:
             new_passkey = md5((str(time.time()) + self.username).encode('utf-8')).hexdigest()
-            if get_userid_by_passkey(new_passkey) < 0:
+            if await get_userid_by_passkey(new_passkey) < 0:
                 break # the passkey is unique
         if not new:
-            evict_cache_keyword([self.passkey, f"get_user_by_id*({self.id},):"])
+            await evict_cache_keyword([self.passkey, f"get_user_by_id*({self.id},):"])
         self.passkey = new_passkey
     
-    def add_role(self, db: Session, role_name: str, priority: int = 1):
-        role = db.query(Role).filter(Role.role_name == role_name).one()
+    async def add_role(self, db: AsyncSession, role_name: str, priority: int = 1):
+        sql = select(Role).where(Role.role_name == role_name)
+        role, = (await db.execute(sql)).first()
         urmap = URMap(role=role, priority=priority)
         self.role.append(urmap)
         db.add(urmap)
 
-    def remove_role(self, db: Session, role_name: str):
+    async def remove_role(self, db: AsyncSession, role_name: str):
         for role in self.role:
             if role.role.role_name == role_name:
                 self.role.remove(role)
-                db.delete(role)
+                await db.delete(role)
         db.add(self)
 
     def has_permission(self, permission: Union[int, List[int]]):
@@ -193,24 +197,28 @@ class User(Base):
 
 
 @gg_cache(cache_type='timed_cache') # TODO: need sophisticated cache to improve performance
-def get_user_by_id(uid, bypass_cache: Any=None): 
+async def get_user_by_id(uid, bypass_cache: Any=None): 
     del bypass_cache
-    db:Session = sqldb()
-    ret = db.query(User).filter(User.id == uid).one()
-    db.close()
+    db:AsyncSession = sqldb()
+    sql = select(User).where(User.id == uid).limit(1)
+    result = await db.execute(sql)
+    ret, = result.first()
+    # ret = await db.query(User).filter(User.id == uid).one()
+    await db.close()
     return ret
 
 @gg_cache(cache_type='timed_cache')
-def get_userid_by_passkey(passkey, bypass_cache: Any=None):
+async def get_userid_by_passkey(passkey, bypass_cache: Any=None):
     del bypass_cache
-    db:Session = sqldb()
-    ret = db.query(User).filter(User.passkey == passkey)
+    db:AsyncSession = sqldb()
+    sql = select(User).where(User.passkey == passkey).limit(1)
+    result = await db.execute(sql)
     try:
-        ret = ret.one()
+        ret, = result.first()
         if not ret.has_permission(Permission.SEED_LEECH):
             return -2
         return ret.id
     except:
         return -1
     finally:
-        db.close()
+        await db.close()

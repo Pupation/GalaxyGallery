@@ -16,7 +16,4 @@ def check_passkey(passkey: str):
 
             a userid will be returned
     """
-    return asyncio.create_task(_check_passkey(passkey))
-
-async def _check_passkey(passkey: str):
-    return get_userid_by_passkey(passkey)
+    return asyncio.create_task(get_userid_by_passkey(passkey))

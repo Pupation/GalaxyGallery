@@ -2,7 +2,7 @@ db:
   nosql:
     url: mongodb://10.10.10.10:27017
     name: gg
-  sql: "mysql+pymysql://root:galaxygallery@10.10.10.10:3306/gg"
+  sql: "mysql+asyncmy://root:galaxygallery@10.10.10.10:3306/gg"
 
 site:
   name: "Galaxy Gallery Private Tracker"

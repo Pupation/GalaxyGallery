@@ -8,7 +8,6 @@ from models.torrent import get_peer_count
 
 @gg.get('/scrape')
 async def scrape(
-    request:Request,
     info_hash: bytes,
     passkey: str
 ):

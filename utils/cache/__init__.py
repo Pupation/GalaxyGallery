@@ -1,5 +1,5 @@
 
-import redis
+import aioredis as redis
 
 from main import config
 from functools import lru_cache
@@ -12,7 +12,7 @@ caches = []
 redis_connection_pool = redis.ConnectionPool(**config.cache.redis)
 client_lru = redis.StrictRedis(connection_pool=redis_connection_pool)
 client_timed = redis.StrictRedis(connection_pool=redis_connection_pool)
-from redis_lru import RedisLRU
+from .aioredis import AioRedisLRU as RedisLRU
 # redis_lru_cache = RedisLRU(client_lru, key_prefix='lru_cache')
 # redis_timed_lru_cache = RedisLRU(client_timed, key_prefix='timed_lru_cache')
 
@@ -69,13 +69,13 @@ def gg_cache(func=None, cache_type='lru_cache', maxsize=None):
 def clear_cache():
     pass
 
-def evict_cache_keyword(keyword: Union[str, List[str]]):
+async def evict_cache_keyword(keyword: Union[str, List[str]]):
     client = redis.StrictRedis(connection_pool=redis_connection_pool)
     to_delete = []
     if not isinstance(keyword, list):
         keyword = [keyword]
     for key in keyword:
-        to_delete += client.keys(f"*{key}*")
+        to_delete += await client.keys(f"*{key}*")
     if len(to_delete)> 0:
-        client.delete(*to_delete)
+        await client.delete(*to_delete)
 

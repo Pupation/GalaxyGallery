@@ -2,8 +2,10 @@ import enum
 
 from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String, Enum, DateTime, BigInteger, Boolean, SmallInteger, Numeric, BINARY, Text
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+import asyncio
 from sqlalchemy.sql import func
+from sqlalchemy.future import select
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from bson import ObjectId
@@ -92,24 +94,26 @@ class CreateTorrentForm(BaseModel):
     nfo_id: str
 
 def flush_page_cache():
-    evict_cache_keyword("{_get_torrent_list.__module__}.{_get_torrent_list.__name__}")
+    asyncio.create_task(evict_cache_keyword("{_get_torrent_list.__module__}.{_get_torrent_list.__name__}"))
 
 @gg_cache(cache_type='timed_cache')
-def _get_torrent_list(page, keyword):
+async def _get_torrent_list(page, keyword):
     ret = []
-    for db in get_sqldb():
-        query = db.query(TorrentSQL).filter(TorrentSQL.status == TorrentStatus.normal)
+    async for db in get_sqldb():
+        query = select(TorrentSQL).where(TorrentSQL.status == TorrentStatus.normal)
+        # query = db.query(TorrentSQL).filter(TorrentSQL.status == TorrentStatus.normal)
         if keyword: 
-            query = query.filter(func.concat(TorrentSQL.name, TorrentSQL.subname).like(f"%{keyword}%"))
+            query = query.where(func.concat(TorrentSQL.name, TorrentSQL.subname).like(f"%{keyword}%"))
         query = query.order_by(TorrentSQL.popstatus.desc(), TorrentSQL.rank_by.desc())
-        total = query.count()
+        total = (await db.execute(query.with_only_columns(func.count()))).scalar()
         if page * config.site.preference.per_page > total:
             return floor(total / config.site.preference.per_page), total # redirect to taht page number
-        for t in query.offset(
+        query = query.offset(
             page * config.site.preference.per_page
         ).limit(
             config.site.preference.per_page
-        ).all():
+        )
+        for t, in (await db.execute(query)).all():
             ret.append(
                 {
                     'id': t.id,
@@ -124,12 +128,12 @@ def _get_torrent_list(page, keyword):
     return ret, total
 
 async def get_torrent_list(page: int = 0, keyword: str = None):
-    db: Session
-    ret, total = _get_torrent_list(page, keyword)
+    db: AsyncSession
+    ret, total = await _get_torrent_list(page, keyword)
     if isinstance(ret, int):
         return await get_torrent_list(ret, keyword)
     for record in ret:
-        info_hash = record.pop('info_hash')
+        info_hash = record['info_hash']
         record.update(** await get_peer_count(info_hash))
     return { 'data': ret,
             'page': page,
@@ -137,28 +141,32 @@ async def get_torrent_list(page: int = 0, keyword: str = None):
      }
 
 @gg_cache
-def get_torrent_info_hash(torrent_id):
-    db: Session
-    for db in get_sqldb():
+async def get_torrent_info_hash(torrent_id):
+    db: AsyncSession
+    async for db in get_sqldb():
         try:
-            record = db.query(TorrentSQL).filter( TorrentSQL.id == torrent_id ).one()
+            sql = select(TorrentSQL).where(TorrentSQL.id == torrent_id)
+            record = await db.execute(sql)
+            record, = record.first()
             return record.info_hash
         except:
             raise HTTPException(404, 'Torrent does not exsit')
 
 @gg_cache
-def get_torrent_id(torrent_info_hash):
-    db: Session
-    for db in get_sqldb():
+async def get_torrent_id(torrent_info_hash):
+    db: AsyncSession
+    async for db in get_sqldb():
         try:
-            record = db.query(TorrentSQL).filter(TorrentSQL.info_hash == torrent_info_hash).one()
+            sql = select(TorrentSQL).where(TorrentSQL.info_hash == torrent_info_hash)
+            record = await db.execute(sql)
+            record, = record.first()
             return record.id
         except:
             raise HTTPException(404, 'Torrent does not exsit')
 
 
-def get_torrent_detail(torrent_id: int, torrent: int):
-    info_hash = get_torrent_info_hash(torrent_id)
+async def get_torrent_detail(torrent_id: int, torrent: int):
+    info_hash = await get_torrent_info_hash(torrent_id)
     projection = {'_id': 0, 
                     'torrent': torrent,
                 'info_hash': 1, 'desc': 1, 'detail': 1, 'filename': 1}
@@ -170,7 +178,8 @@ def get_torrent_detail(torrent_id: int, torrent: int):
         {'info_hash': info_hash},
         projection
     )
-    for r in ret:
+    print(ret)
+    for r in await ret.to_list(1):
         record = dict(TorrentNoSQL(**r))
         return record
         

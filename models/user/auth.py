@@ -27,7 +27,7 @@ async def current_user(token: User = Depends(oauth2_scheme)):
         bearer = jwt.decode(token, config.site.SECRET_KEY)
     except JWTError as e:
         raise HTTPException(401, 'Invalid Token')
-    user = get_user_by_id(bearer['uid'])
+    user = await get_user_by_id(bearer['uid'])
     if not user.has_permission(Permission.LOGIN):
         raise HTTPException(403, "You don't have permission to login")
     return user

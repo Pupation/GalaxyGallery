@@ -1,5 +1,7 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from datetime import timedelta, datetime
+from fastapi import Depends
 
 from main import config
 from utils.connection.sql.db import get_sqldb
@@ -9,28 +11,30 @@ from models.torrent.user_peer_stat import UserPeerStat, UserSeedStatus, get_last
 from models.torrent.torrent import TorrentSQL
 
 async def accountingService(peer: Peer, next_allowance: timedelta, left: bool):
-    db: Session
+    db: AsyncSession
     await peer.find_one
+    (downloaded, uploaded, time_delta), update_one = await peer.commit(next_allowance=next_allowance, seeder= left == 0)
 
-    downloaded, uploaded, time_delta = peer.commit(next_allowance=next_allowance, seeder= left == 0)
-
-    for db in get_sqldb():
-        user = db.query(User).get({'id': peer.peer.userid})
-        
-        last_action = get_last_action(peer.peer.torrent)
+    async for db in get_sqldb():
+    # sql_update_user = update(User).where(User.id == db.peer.peer.userid)
+        user = await db.get(User, {'id': peer.peer.userid})
+        last_action = await get_last_action(peer.peer.torrent)
 
         if last_action - datetime.now() > timedelta(days=config.site.preference.reseed_threshold):
-            # TODO: trigger reseed bonus
+            # TODO: trigger evict cache and reseed bonus
             print("reseed bonus!")
             pass
-        try:   
-            stat = db.query(UserPeerStat).filter_by(uid=peer.peer.userid, tid=peer.peer.torrent).one()
+        try:
+            sql = select(UserPeerStat).where(UserPeerStat.uid==peer.peer.userid, UserPeerStat.tid==peer.peer.torrent)
+            stat, = (await db.execute(sql)).first()
+            # stat = db.query(UserPeerStat).filter_by(uid=peer.peer.userid, tid=peer.peer.torrent).one()
         except:
             stat = UserPeerStat(uid=peer.peer.userid, tid=peer.peer.torrent)
-            stat.torrent_size = db.query(TorrentSQL).filter_by(id=stat.tid).one().size
+            sql = select(TorrentSQL.size).where(TorrentSQL.id == stat.tid)
+            stat.torrent_size = await db.scalar(sql)
             db.add(stat)
-            db.commit()
-            db.refresh(stat)
+            await db.commit()
+            await db.refresh(stat)
 
         user.downloaded = User.downloaded + downloaded
         stat.downloaded = UserPeerStat.downloaded + downloaded
@@ -61,6 +65,4 @@ async def accountingService(peer: Peer, next_allowance: timedelta, left: bool):
             stat.leechtime = UserPeerStat.leechtime + leechtime
             user.leechtime = User.leechtime + leechtime
 
-        db.commit()
-    print(uploaded, downloaded, time_delta)
-    # print("this is accounting service at background")
+        await db.commit()
