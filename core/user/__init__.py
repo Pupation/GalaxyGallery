@@ -2,7 +2,8 @@ from fastapi import APIRouter
 
 
 router = APIRouter(
-    prefix='/api'
+    prefix='/api',
+    tags=['users']
 )
 
 from .user import *
