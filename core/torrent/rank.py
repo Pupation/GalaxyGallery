@@ -33,6 +33,8 @@ async def get_trending_keyword(keyword: str):
             if await client.exists(rank_name) != 0:
                 rank_names[rank_name] = 2 - 0.5 * i
             dates -= timedelta(days=1)
+        if len(rank_names.keys()) == 0:
+            return []
         await client.zunionstore(key_name, rank_names)
         await client.expireat(key_name, expire)
     ret = []
