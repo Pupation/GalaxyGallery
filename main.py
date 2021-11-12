@@ -28,10 +28,8 @@ gg.add_middleware(
     allow_headers=["*"],
 )
 
-gg.mount("/static", StaticFiles(directory="static"), name="static")
+gg.mount("/static", StaticFiles(directory="static", check_dir = False), name="static")
 
 @gg.on_event('shutdown')
-async def stop(self):
+async def stop():
     print('---------try killing')
-    # client = redis.StrictRedis(connection_pool=redis_connection_pool)
-    # client.publish(NAME_MESSAGE_QUEUE, 'KILL')
