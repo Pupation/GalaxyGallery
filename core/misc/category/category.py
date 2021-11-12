@@ -63,7 +63,7 @@ async def add_category(payload: UpdateCategoryForm, _: User = Depends(user_with_
         raise HTTPException(409, 'Category id already exist.')
     try:
         if payload.template_id == None:
-            template_id = 0
+            payload.template_id = 0
         await nosql_client.categories.insert_one(dict(payload))
     except:
         raise HTTPException(400, "Error creating categories.")
