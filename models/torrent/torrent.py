@@ -182,7 +182,9 @@ async def get_torrent_list(page: int = 0, keyword: str = None, version=None):
                                     'entry_name': ret[cur]['name'],
                                     'added': ret[cur]['added'],
                                 }
-                        ]
+                        ],
+                        # FIXME: Placeholder poster
+                        'poster': 'https://img9.doubanio.com/view/photo/l_ratio_poster/public/p2687443734.jpg'
                     }
                 )
             else:
@@ -197,7 +199,9 @@ async def get_torrent_list(page: int = 0, keyword: str = None, version=None):
                         'name': coll.name,
                         'subname': coll.subname,
                         'rank_by': ret[cur]['rank_by'],
-                        'torrents': []
+                        'torrents': [],
+                        # FIXME: Placeholder poster
+                        'poster': 'https://img9.doubanio.com/view/photo/l_ratio_poster/public/p2687443734.jpg'
                     }
                 )
                 warpped_torrent.torrents = [
