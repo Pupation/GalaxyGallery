@@ -6,4 +6,5 @@ collection_router = APIRouter(
     tags=['collections']
 )
 
-from .create import *
+from .manage import *
+from .edit import *

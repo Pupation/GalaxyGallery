@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Union
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -54,7 +54,24 @@ class TorrentListResponse(BaseModel):
         incomplete: int
         size: tuple
         rank_by: datetime
-    data: List[TorrentBreifResponse]
+    class CollectionBreifResponse(BaseModel):
+        class InCollectionBreifResponse(BaseModel):
+            id: int
+            entry_name: str
+            downloaded: int
+            complete: int
+            incomplete: int
+            size: tuple
+            added: datetime
+            rank_by: datetime
+        id: int
+        name: str
+        subname: str
+        rank_by: datetime
+        torrents: List[InCollectionBreifResponse]
+        tags: Optional[List[str]]
+        poster: Optional[str]
+    data: Union[List[TorrentBreifResponse],List[CollectionBreifResponse]]
     page: int
     total: int
 

@@ -69,6 +69,8 @@ cache:
       torrent:
         _get_torrent_list: 
           ttl: 30
+        get_torrent_list: 
+          ttl: 30
         get_torrent_info_hash: null
         get_torrent_id: null
       user_peer_stat: 

@@ -1,3 +1,4 @@
+from models.torrent.peer import get_peer_count
 from . import router
 
 from fastapi import Request, HTTPException, Depends
@@ -14,10 +15,11 @@ from utils.provider.torrent import Torrent
 from utils.connection.sql.db import get_sqldb
 from utils.connection.nosql.db import client as nosql_db
 from main import config
-from models.torrent import get_peer_count, get_torrent_list, get_torrent_detail
+from models.torrent import get_torrent_list, get_torrent_detail
 from .rank import query_keyword
 
 from models.forms.torrent import TorrentListResponse, TorrentDetailResponse
+from typing import List, Literal
 
 
 @router.get('/torrent_list', response_model=TorrentListResponse)
@@ -26,11 +28,15 @@ async def torrent_list(request: Request,
                        keyword: str = None,
                        semi_search: bool = False,
                        advanced: bool = False,
+                       version: Literal['v1', 'v2'] = 'v1',
                        _: User = Depends(current_active_user)
                        ):
     if not semi_search and page == 0 and keyword != '' and keyword is not None:
         await query_keyword(keyword)
-    ret = await get_torrent_list(page, keyword)
+    if version in ['v1', 'v2']:
+        ret = await get_torrent_list(page, keyword, version)
+    else:
+        raise HTTPException(400, 'Invalid Version: %s' % version)
     return ret
 
 

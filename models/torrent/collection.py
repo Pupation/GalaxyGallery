@@ -1,16 +1,16 @@
-from .. import Base
-
-from sqlalchemy import Integer, Text, DateTime, Column, SmallInteger, Enum, ForeignKey
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+import enum
 from typing import List, Union
 
-import enum
-
+from sqlalchemy import (Column, DateTime, Enum, ForeignKey, Integer,
+                        SmallInteger, Text)
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from utils.cache import gg_cache
 from utils.connection.sql.db import get_sqldb
+
+from .. import Base
 
 
 class CollectionSource(enum.Enum):
@@ -38,16 +38,30 @@ class Collection(Base):
                        default=CategoryPublished.private)
     desc = Column(Text, nullable=True)
     owner_id = Column(Integer, nullable=False)
-    tags = Column(Text, nullable=False)
+    _tags = Column("tags", Text, nullable=False)
     category = Column(SmallInteger, nullable=True)
-    created = Column(DateTime, nullable=False)
-    last_modified = Column(DateTime, nullable=False,
+    created = Column(DateTime, nullable=False, default=func.current_timestamp())
+    last_modified = Column(DateTime, nullable=False,default=func.current_timestamp(),
                            onupdate=func.current_timestamp())
     hit = Column(Integer, nullable=False, default=0)
     items = relationship(
         'CollectionItems', primaryjoin='foreign(Collection.id) == remote(CollectionItems.cid)', lazy='joined',
         uselist=True
     )
+
+    @property
+    def tags(self) -> List:
+        return eval(self._tags)
+    
+    @tags.setter
+    def tags(self, tags):
+        self._tags = str(tags)
+
+    def append_tags(self, tag):
+        tags = self.tags
+        tags.append(tag)
+        self.tags = tags
+
 
 class CollectionItems(Base):
     __tablename__ = 'collection_items'
@@ -88,13 +102,22 @@ async def in_collection(self, cid: int, tids: List[int]):
 
 
 async def get_collections_by_tids(tids: Union[List[int], int], c_type: CollectionSource = CollectionSource.group):
+    db: AsyncSession
     if isinstance(tids, int):
         tids = [tids]
     sql = select(Collection).where(
-        CollectionItems.tid.in_(tids) & (Collection.source == c_type))
-    print(sql)
+        Collection.items.any(CollectionItems.tid.in_(tids)) & (Collection.source == c_type))
+    result = []
+    # print(sql)
+    # sql = "select * from collections inner join collection_items on collections.id = collection_items.cid inner join torrents on torrents.id = collection_items.tid where torrents.id in :tids and collections.source = :source;"
     async for db in get_sqldb():
-        ret = await db.execute(sql)
+        ret = await db.execute(sql, params={
+            "tids": tuple(tids),
+            "source": c_type.name
+        })
         for coll, in ret.unique().all():
             # print(coll.name, colli.desc, t.subname)
+            # print(coll)
             print(coll.__dict__, coll.items, [(i.desc, i.torrent.subname) for i in coll.items])
+            result.append(coll)
+    return result
