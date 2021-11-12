@@ -183,6 +183,7 @@ async def get_torrent_list(page: int = 0, keyword: str = None, version=None):
                                     'added': ret[cur]['added'],
                                 }
                         ],
+                        'tags': ['Placeholder'],
                         # FIXME: Placeholder poster
                         'poster': 'https://img9.doubanio.com/view/photo/l_ratio_poster/public/p2687443734.jpg'
                     }
@@ -199,6 +200,7 @@ async def get_torrent_list(page: int = 0, keyword: str = None, version=None):
                         'name': coll.name,
                         'subname': coll.subname,
                         'rank_by': ret[cur]['rank_by'],
+                        'tags': coll.tags,
                         'torrents': [],
                         # FIXME: Placeholder poster
                         'poster': 'https://img9.doubanio.com/view/photo/l_ratio_poster/public/p2687443734.jpg'
