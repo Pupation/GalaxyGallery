@@ -37,14 +37,18 @@ async def update_collection(cid:int, user: User = Depends(current_active_user)):
 
 @collection_router.delete('/{cid:int}')
 async def delete_collection(cid:int, user: User = Depends(current_active_user), db: AsyncSession= Depends(get_sqldb)):
-    sql = select(Collection).where(Collection.id == cid)
-    ret, = (await db.execute(sql)).one_or_none()
+    cid = int(cid)
+    sql = select(Collection.owner_id, Collection.source).where(Collection.id == cid)
+    ret = (await db.execute(sql)).one_or_none()
     if ret is None:
         raise HTTPException(404, 'Not found')
-    if ret.owner_id != user.id or ret.source == CollectionSource.official or ret.source == CollectionSource.group:
+    owner_id, source = ret
+    if cid != user.id and (owner_id != user.id or source == CollectionSource.official or source == CollectionSource.group):
         if not user.has_permission(Permission.MANAGE_COLLECTION):
             raise HTTPException(403, "You do not have permission to create an official collection")
-    sql = CollectionItems.__table__.delete().where(CollectionItems.cid == cid)
+    sql = CollectionItems.__table__.delete().where(CollectionItems.cid == cid) 
     await db.execute(sql)
-    await db.delete(ret)
+    sql = Collection.__table__.delete().where(Collection.id == cid)
+    await db.execute(sql)
+    await db.commit()
     return {'ok': 1}
