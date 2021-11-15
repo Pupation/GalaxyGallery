@@ -11,7 +11,7 @@ from typing import List
 from utils.cache import gg_cache
 from utils.connection.sql.db import get_sqldb
 
-class UserSeedStatus(enum.Enum):
+class UserSeedStatus(enum.IntEnum):
     DOWNLOADING = 0
     SEEDING = 1
     PARTICAL_SEEDING = 2
@@ -70,8 +70,8 @@ async def get_last_action(tid):
             await db.close()
 
 @gg_cache(cache_type='timed_cache')
-def get_count_peer_stat_count_by_tid(torrent_id: int):
-    for db in get_sqldb():
+async def get_count_peer_stat_count_by_tid(torrent_id: int):
+    async for db in get_sqldb():
         result = db.query(UserPeerStat.status, func.count(UserPeerStat.status)).filter(
             (UserPeerStat.tid == torrent_id) &
             (UserPeerStat.last_action > datetime.utcnow() - timedelta(minutes=30))
