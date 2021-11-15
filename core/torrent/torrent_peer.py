@@ -21,6 +21,7 @@ async def get_peer_stat_count(torrent_id: int, _: User = Depends(user_with_permi
 @router.get('/peer/list/{torrent_id:int}', response_model=UserPeerStatResponse)
 async def get_peer_stat_list(torrent_id: int, status: UserSeedStatus, page: int = 0, _: User = Depends(user_with_permission(Permission.DOWNLOAD_TORRENT)), db: AsyncSession = Depends(get_sqldb)):
     result = []
+    # TODO: Revert to query without join since join is less efficient
     sql = select(UserPeerStat, User.anonymous, User.username).join(User, onclause=User.id == UserPeerStat.uid).where(
         (UserPeerStat.tid == torrent_id) &
         (UserPeerStat.status == UserSeedStatus(status)) &
